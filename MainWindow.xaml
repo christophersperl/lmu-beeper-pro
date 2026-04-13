@@ -240,11 +240,11 @@
                         </Grid>
                         <Grid Margin="0,0,0,5">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="65"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="35"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Beep 2:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="Beep 2 (Lift):" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
                             <Slider x:Name="SliderWarn2" Grid.Column="1" Minimum="1" Maximum="90" Value="50" Margin="5,0" ValueChanged="SliderWarn2_ValueChanged"/>
                             <TextBlock x:Name="TxtWarn2" Grid.Column="2" Text="50" Foreground="#FFFF8C00" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
