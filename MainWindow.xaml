@@ -53,6 +53,74 @@
             </Setter>
         </Style>
 
+        <Style x:Key="DarkCombo" TargetType="ComboBox">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFCCCCCC"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="2" Padding="6,0,22,0">
+                                <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                    Content="{TemplateBinding SelectionBoxItem}"
+                                    ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                    VerticalAlignment="Center"/>
+                            </Border>
+                            <Path x:Name="Arrow" Data="M 0,0 L 4,4 L 8,0 Z" Fill="#FF888888"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Background="Transparent" BorderThickness="0" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"
+                                          Cursor="Hand" Opacity="0"/>
+                            <Popup x:Name="Popup" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#1A1A1A" BorderBrush="#44FFFFFF" BorderThickness="1" CornerRadius="2" MinWidth="{TemplateBinding ActualWidth}">
+                                    <ItemsPresenter/>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#44FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Foreground" Value="#FFCCCCCC"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="FontSize" Value="10"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="ItemBd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="ItemBd" Property="Background" Value="#FF00FFCC"/>
+                                            <Setter Property="Foreground" Value="Black"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="ItemBd" Property="Background" Value="#2200FFCC"/>
+                                            <Setter Property="Foreground" Value="#FF00FFCC"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="Button">
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="Foreground" Value="White"/>
@@ -145,7 +213,21 @@
                             <CheckBox x:Name="ToggleShift" Content="SHIFT BEEP" Style="{StaticResource MetroSwitch}" IsChecked="True" Checked="ToggleShift_Changed" Unchecked="ToggleShift_Changed"/>
                         </StackPanel>
 
-                        <TextBlock Text="WARNING DISTANCES (m)" Foreground="#FF666666" FontSize="9" FontWeight="Bold" Margin="0,0,0,2"/>
+                        <Grid Margin="0,0,0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Brake:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="ComboBrakePreset" Grid.Column="1" Style="{StaticResource DarkCombo}" SelectionChanged="ComboBrakePreset_SelectionChanged">
+                                <ComboBoxItem Content="Chime" IsSelected="True"/>
+                                <ComboBoxItem Content="Classic"/>
+                                <ComboBoxItem Content="Radar"/>
+                                <ComboBoxItem Content="Alert"/>
+                            </ComboBox>
+                        </Grid>
+
+                        <TextBlock Text="WARNING DISTANCES (m)" Foreground="#FF666666" FontSize="9" FontWeight="Bold" Margin="0,8,0,2"/>
                         <Grid Margin="0,0,0,2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="40"/>
@@ -177,6 +259,20 @@
                             <TextBlock Text="Trigger:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
                             <Slider x:Name="SliderShift" Grid.Column="1" Minimum="88" Maximum="100" Value="97" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="SliderShift_ValueChanged"/>
                             <TextBlock x:Name="TxtShift" Grid.Column="2" Text="97.0%" Foreground="#FF00FFCC" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Shift:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="ComboShiftPreset" Grid.Column="1" Style="{StaticResource DarkCombo}" SelectionChanged="ComboShiftPreset_SelectionChanged">
+                                <ComboBoxItem Content="Double" IsSelected="True"/>
+                                <ComboBoxItem Content="Single"/>
+                                <ComboBoxItem Content="Triple"/>
+                                <ComboBoxItem Content="Buzz"/>
+                            </ComboBox>
                         </Grid>
                     </StackPanel>
 

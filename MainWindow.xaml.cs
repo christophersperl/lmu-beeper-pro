@@ -42,6 +42,8 @@ namespace LMUWeaver
 
         private volatile bool isBrakeBeepEnabled = true;
         private volatile bool isShiftBeepEnabled = true;
+        private string brakePreset = "Chime";
+        private string shiftPreset = "Double";
 
         public MainWindow()
         {
@@ -130,13 +132,43 @@ namespace LMUWeaver
                 if (!beepStatus.ContainsKey(point)) beepStatus[point] = new bool[3];
 
                 if (dist >= point - warn1Distance && dist < point - (warn1Distance - 10) && !beepStatus[point][0])
-                { Task.Run(() => PlayTone(520, 120, 0.55)); beepStatus[point][0] = true; }
+                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 0)); beepStatus[point][0] = true; }
 
                 if (dist >= point - warn2Distance && dist < point - (warn2Distance - 10) && !beepStatus[point][1])
-                { Task.Run(() => { PlayTone(660, 120, 0.6); Thread.Sleep(140); PlayTone(880, 120, 0.6); }); beepStatus[point][1] = true; }
+                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 1)); beepStatus[point][1] = true; }
 
                 if (dist >= point - 5 && dist < point + 5 && !beepStatus[point][2])
-                { Task.Run(() => { PlayTone(880, 100, 0.65); Thread.Sleep(110); PlayTone(1100, 100, 0.65); Thread.Sleep(110); PlayTone(1320, 180, 0.65); }); beepStatus[point][2] = true; }
+                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 2)); beepStatus[point][2] = true; }
+            }
+        }
+
+        private void PlayBrakeBeep(string preset, int stage)
+        {
+            switch (preset)
+            {
+                case "Classic":
+                    // Simple single beeps at rising pitch
+                    if (stage == 0) { PlayTone(600, 100, 0.6); }
+                    else if (stage == 1) { PlayTone(800, 100, 0.6); Thread.Sleep(120); PlayTone(800, 100, 0.6); }
+                    else { PlayTone(1000, 100, 0.65); Thread.Sleep(120); PlayTone(1000, 100, 0.65); Thread.Sleep(120); PlayTone(1000, 100, 0.65); }
+                    break;
+                case "Radar":
+                    // Short sharp pings
+                    if (stage == 0) { PlayTone(1400, 50, 0.4); }
+                    else if (stage == 1) { PlayTone(1400, 50, 0.45); Thread.Sleep(80); PlayTone(1400, 50, 0.45); }
+                    else { PlayTone(1600, 50, 0.5); Thread.Sleep(70); PlayTone(1600, 50, 0.5); Thread.Sleep(70); PlayTone(1600, 50, 0.5); }
+                    break;
+                case "Alert":
+                    // Low urgent tones
+                    if (stage == 0) { PlayTone(350, 200, 0.55); }
+                    else if (stage == 1) { PlayTone(450, 150, 0.6); Thread.Sleep(60); PlayTone(550, 150, 0.6); }
+                    else { PlayTone(700, 350, 0.7); }
+                    break;
+                default: // Chime
+                    if (stage == 0) { PlayTone(520, 120, 0.55); }
+                    else if (stage == 1) { PlayTone(660, 120, 0.6); Thread.Sleep(140); PlayTone(880, 120, 0.6); }
+                    else { PlayTone(880, 100, 0.65); Thread.Sleep(110); PlayTone(1100, 100, 0.65); Thread.Sleep(110); PlayTone(1320, 180, 0.65); }
+                    break;
             }
         }
 
@@ -145,8 +177,27 @@ namespace LMUWeaver
             if (maxRpm <= 0) return;
             double shiftPoint = maxRpm * shiftBeeperPercentage;
             if (currentRpm >= shiftPoint && !shiftBeepPlayed)
-            { Task.Run(() => { PlayTone(1400, 60, 0.45); Thread.Sleep(70); PlayTone(1800, 60, 0.45); }); shiftBeepPlayed = true; }
+            { string p = shiftPreset; Task.Run(() => PlayShiftBeep(p)); shiftBeepPlayed = true; }
             else if (currentRpm < shiftPoint - 200) { shiftBeepPlayed = false; }
+        }
+
+        private void PlayShiftBeep(string preset)
+        {
+            switch (preset)
+            {
+                case "Single":
+                    PlayTone(1600, 80, 0.5);
+                    break;
+                case "Triple":
+                    PlayTone(1200, 50, 0.4); Thread.Sleep(65); PlayTone(1500, 50, 0.4); Thread.Sleep(65); PlayTone(1800, 50, 0.4);
+                    break;
+                case "Buzz":
+                    PlayTone(180, 100, 0.6);
+                    break;
+                default: // Double
+                    PlayTone(1400, 60, 0.45); Thread.Sleep(70); PlayTone(1800, 60, 0.45);
+                    break;
+            }
         }
 
         private void PlayTone(double frequency, int durationMs, double volume)
@@ -214,6 +265,8 @@ namespace LMUWeaver
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
         private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
         private void SliderBgOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (BackgroundLayer != null && TxtBgOpacity != null) { BackgroundLayer.Opacity = e.NewValue / 100.0; TxtBgOpacity.Text = $"{e.NewValue:F0}%"; } }
+        private void ComboBrakePreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboBrakePreset.SelectedItem is ComboBoxItem item) brakePreset = item.Content.ToString() ?? "Chime"; }
+        private void ComboShiftPreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboShiftPreset.SelectedItem is ComboBoxItem item) shiftPreset = item.Content.ToString() ?? "Double"; }
         private void ResetBeepStatus() => beepStatus.Clear();
 
         private void BtnAddPoint_Click(object sender, RoutedEventArgs e)
