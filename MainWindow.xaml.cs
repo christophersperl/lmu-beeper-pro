@@ -130,13 +130,13 @@ namespace LMUWeaver
                 if (!beepStatus.ContainsKey(point)) beepStatus[point] = new bool[3];
 
                 if (dist >= point - warn1Distance && dist < point - (warn1Distance - 10) && !beepStatus[point][0])
-                { TriggerSound(450, 150, 0.7, true); beepStatus[point][0] = true; }
+                { Task.Run(() => PlayTone(520, 120, 0.55)); beepStatus[point][0] = true; }
 
                 if (dist >= point - warn2Distance && dist < point - (warn2Distance - 10) && !beepStatus[point][1])
-                { TriggerSound(650, 150, 0.7, true); beepStatus[point][1] = true; }
+                { Task.Run(() => { PlayTone(660, 120, 0.6); Thread.Sleep(140); PlayTone(880, 120, 0.6); }); beepStatus[point][1] = true; }
 
                 if (dist >= point - 5 && dist < point + 5 && !beepStatus[point][2])
-                { TriggerSound(1200, 300, 0.7, true); beepStatus[point][2] = true; }
+                { Task.Run(() => { PlayTone(880, 100, 0.65); Thread.Sleep(110); PlayTone(1100, 100, 0.65); Thread.Sleep(110); PlayTone(1320, 180, 0.65); }); beepStatus[point][2] = true; }
             }
         }
 
@@ -145,26 +145,26 @@ namespace LMUWeaver
             if (maxRpm <= 0) return;
             double shiftPoint = maxRpm * shiftBeeperPercentage;
             if (currentRpm >= shiftPoint && !shiftBeepPlayed)
-            { TriggerSound(1500, 50, 0.5, false); shiftBeepPlayed = true; }
+            { Task.Run(() => { PlayTone(1400, 60, 0.45); Thread.Sleep(70); PlayTone(1800, 60, 0.45); }); shiftBeepPlayed = true; }
             else if (currentRpm < shiftPoint - 200) { shiftBeepPlayed = false; }
         }
 
-        private void TriggerSound(double frequency, int durationMs, double volume, bool isSine)
-        { Task.Run(() => PlaySynthesizedBeep(frequency, durationMs, volume, isSine)); }
-
-        private void PlaySynthesizedBeep(double frequency, int durationMs, double volume, bool isSine)
+        private void PlayTone(double frequency, int durationMs, double volume)
         {
             int sampleRate = 44100;
             int samples = (int)((sampleRate * durationMs) / 1000.0);
+            int fadeIn = Math.Min(800, samples / 4);
+            int fadeOut = Math.Min(1200, samples / 3);
             short[] waveData = new short[samples];
-            byte[] buffer = new byte[44 + waveData.Length * 2];
-            for (int i = 0; i < waveData.Length; i++)
+            for (int i = 0; i < samples; i++)
             {
                 double t = frequency * ((double)i / sampleRate) * 2.0 * Math.PI;
-                double sample = isSine ? Math.Sin(t) : Math.Sign(Math.Sin(t));
-                double fade = 1.0; if (waveData.Length - i < 400) fade = (double)(waveData.Length - i) / 400;
-                waveData[i] = (short)(sample * short.MaxValue * volume * fade);
+                double env = 1.0;
+                if (i < fadeIn) env = (double)i / fadeIn;
+                else if (samples - i < fadeOut) env = (double)(samples - i) / fadeOut;
+                waveData[i] = (short)(Math.Sin(t) * short.MaxValue * volume * env);
             }
+            byte[] buffer = new byte[44 + waveData.Length * 2];
             using (MemoryStream mStream = new MemoryStream(buffer))
             using (BinaryWriter writer = new BinaryWriter(mStream))
             {
@@ -173,7 +173,7 @@ namespace LMUWeaver
                 writer.Write(16); writer.Write((short)1); writer.Write((short)1);
                 writer.Write(sampleRate); writer.Write(sampleRate * 2); writer.Write((short)2);
                 writer.Write((short)16); writer.Write("data".ToCharArray()); writer.Write(waveData.Length * 2);
-                foreach (var sample in waveData) writer.Write(sample);
+                foreach (var s in waveData) writer.Write(s);
                 mStream.Position = 0;
                 using (SoundPlayer player = new SoundPlayer(mStream)) { player.PlaySync(); }
             }

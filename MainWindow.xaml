@@ -151,7 +151,7 @@
                                 <ColumnDefinition Width="35"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Beep 1:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
-                            <Slider x:Name="SliderWarn1" Grid.Column="1" Minimum="60" Maximum="300" Value="100" Margin="5,0" ValueChanged="SliderWarn1_ValueChanged"/>
+                            <Slider x:Name="SliderWarn1" Grid.Column="1" Minimum="10" Maximum="300" Value="100" Margin="5,0" ValueChanged="SliderWarn1_ValueChanged"/>
                             <TextBlock x:Name="TxtWarn1" Grid.Column="2" Text="100" Foreground="#FFFF8C00" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                         <Grid Margin="0,0,0,5">
@@ -161,7 +161,7 @@
                                 <ColumnDefinition Width="35"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Beep 2:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
-                            <Slider x:Name="SliderWarn2" Grid.Column="1" Minimum="10" Maximum="90" Value="50" Margin="5,0" ValueChanged="SliderWarn2_ValueChanged"/>
+                            <Slider x:Name="SliderWarn2" Grid.Column="1" Minimum="1" Maximum="90" Value="50" Margin="5,0" ValueChanged="SliderWarn2_ValueChanged"/>
                             <TextBlock x:Name="TxtWarn2" Grid.Column="2" Text="50" Foreground="#FFFF8C00" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
