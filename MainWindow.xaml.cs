@@ -45,8 +45,8 @@ namespace LMUWeaver
 
         private volatile bool isBrakeBeepEnabled = true;
         private volatile bool isShiftBeepEnabled = true;
-        private string brakePreset = "Chime";
-        private string shiftPreset = "Double";
+        private string brakePreset = "Earcon";
+        private string shiftPreset = "Bell";
 
         public MainWindow()
         {
@@ -175,20 +175,32 @@ namespace LMUWeaver
         {
             switch (preset)
             {
+                case "Earcon":
+                    // Brain-optimized melodic earcons — each stage has a unique musical gesture:
+                    // Stage 0: single E5 — "heads up"
+                    // Stage 1: C5→G5 perfect fifth rising — "prepare, tension building"
+                    // Stage 2: G5→E5→C5 descending major triad — brain reads as "go down / slow down"
+                    if (stage == 0) { PlayTone(659, 150, 0.5); }
+                    else if (stage == 1) { PlayTone(523, 110, 0.55); Thread.Sleep(125); PlayTone(784, 130, 0.6); }
+                    else { PlayTone(784, 90, 0.65); Thread.Sleep(105); PlayTone(659, 90, 0.65); Thread.Sleep(105); PlayTone(523, 180, 0.65); }
+                    break;
+                case "GT":
+                    // F1-style countable pips — 1 pip / 2 pips / 3 pips, zero ambiguity
+                    if (stage == 0) { PlayTone(700, 85, 0.55); }
+                    else if (stage == 1) { PlayTone(850, 75, 0.6); Thread.Sleep(90); PlayTone(850, 75, 0.6); }
+                    else { PlayTone(1000, 65, 0.65); Thread.Sleep(75); PlayTone(1000, 65, 0.65); Thread.Sleep(75); PlayTone(1000, 65, 0.65); }
+                    break;
                 case "Classic":
-                    // Simple single beeps at rising pitch
                     if (stage == 0) { PlayTone(600, 100, 0.6); }
                     else if (stage == 1) { PlayTone(800, 100, 0.6); Thread.Sleep(120); PlayTone(800, 100, 0.6); }
                     else { PlayTone(1000, 100, 0.65); Thread.Sleep(120); PlayTone(1000, 100, 0.65); Thread.Sleep(120); PlayTone(1000, 100, 0.65); }
                     break;
                 case "Radar":
-                    // Short sharp pings
                     if (stage == 0) { PlayTone(1400, 50, 0.4); }
                     else if (stage == 1) { PlayTone(1400, 50, 0.45); Thread.Sleep(80); PlayTone(1400, 50, 0.45); }
                     else { PlayTone(1600, 50, 0.5); Thread.Sleep(70); PlayTone(1600, 50, 0.5); Thread.Sleep(70); PlayTone(1600, 50, 0.5); }
                     break;
                 case "Alert":
-                    // Low urgent tones
                     if (stage == 0) { PlayTone(350, 200, 0.55); }
                     else if (stage == 1) { PlayTone(450, 150, 0.6); Thread.Sleep(60); PlayTone(550, 150, 0.6); }
                     else { PlayTone(700, 350, 0.7); }
@@ -218,6 +230,14 @@ namespace LMUWeaver
         {
             switch (preset)
             {
+                case "Bell":
+                    // Inharmonic overtones create a bell character instantly distinguishable from any brake sound
+                    PlayBell(850, 300, 0.5);
+                    break;
+                case "Ding":
+                    // Bright triangle-like strike — high, short, unmistakable
+                    PlayBell(2200, 180, 0.4);
+                    break;
                 case "Single":
                     PlayTone(1600, 80, 0.5);
                     break;
@@ -230,6 +250,41 @@ namespace LMUWeaver
                 default: // Double
                     PlayTone(1400, 60, 0.45); Thread.Sleep(70); PlayTone(1800, 60, 0.45);
                     break;
+            }
+        }
+
+        // Bell with inharmonic overtones + exponential decay — sounds nothing like a pure sine
+        private void PlayBell(double frequency, int durationMs, double volume)
+        {
+            int sampleRate = 44100;
+            int samples = (int)((sampleRate * durationMs) / 1000.0);
+            int fadeIn = Math.Min(300, samples / 8);
+            short[] waveData = new short[samples];
+            for (int i = 0; i < samples; i++)
+            {
+                double t = (double)i / sampleRate;
+                // Fundamental + inharmonic partials (ratios from struck metal acoustics)
+                double wave = Math.Sin(2 * Math.PI * frequency       * t) * 0.55
+                            + Math.Sin(2 * Math.PI * frequency * 2.756 * t) * 0.25
+                            + Math.Sin(2 * Math.PI * frequency * 5.40  * t) * 0.13
+                            + Math.Sin(2 * Math.PI * frequency * 8.93  * t) * 0.07;
+                // Exponential decay — fast initial drop then long tail
+                double env = Math.Exp(-5.5 * t / (durationMs / 1000.0));
+                if (i < fadeIn) env *= (double)i / fadeIn;
+                waveData[i] = (short)(wave * short.MaxValue * volume * env);
+            }
+            byte[] buffer = new byte[44 + waveData.Length * 2];
+            using (MemoryStream mStream = new MemoryStream(buffer))
+            using (BinaryWriter writer = new BinaryWriter(mStream))
+            {
+                writer.Write("RIFF".ToCharArray()); writer.Write(36 + waveData.Length * 2);
+                writer.Write("WAVE".ToCharArray()); writer.Write("fmt ".ToCharArray());
+                writer.Write(16); writer.Write((short)1); writer.Write((short)1);
+                writer.Write(sampleRate); writer.Write(sampleRate * 2); writer.Write((short)2);
+                writer.Write((short)16); writer.Write("data".ToCharArray()); writer.Write(waveData.Length * 2);
+                foreach (var s in waveData) writer.Write(s);
+                mStream.Position = 0;
+                using (SoundPlayer player = new SoundPlayer(mStream)) { player.PlaySync(); }
             }
         }
 

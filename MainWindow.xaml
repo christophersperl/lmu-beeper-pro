@@ -285,7 +285,9 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Brake:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
                             <ComboBox x:Name="ComboBrakePreset" Grid.Column="1" Style="{StaticResource DarkCombo}" SelectionChanged="ComboBrakePreset_SelectionChanged">
-                                <ComboBoxItem Content="Chime" IsSelected="True"/>
+                                <ComboBoxItem Content="Earcon" IsSelected="True"/>
+                                <ComboBoxItem Content="GT"/>
+                                <ComboBoxItem Content="Chime"/>
                                 <ComboBoxItem Content="Classic"/>
                                 <ComboBoxItem Content="Radar"/>
                                 <ComboBoxItem Content="Alert"/>
@@ -337,7 +339,9 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Shift:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
                             <ComboBox x:Name="ComboShiftPreset" Grid.Column="1" Style="{StaticResource DarkCombo}" SelectionChanged="ComboShiftPreset_SelectionChanged">
-                                <ComboBoxItem Content="Double" IsSelected="True"/>
+                                <ComboBoxItem Content="Bell" IsSelected="True"/>
+                                <ComboBoxItem Content="Ding"/>
+                                <ComboBoxItem Content="Double"/>
                                 <ComboBoxItem Content="Single"/>
                                 <ComboBoxItem Content="Triple"/>
                                 <ComboBoxItem Content="Buzz"/>
