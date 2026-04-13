@@ -48,6 +48,10 @@ namespace LMUWeaver
         private volatile bool isShiftBeepEnabled = true;
         private string brakePreset = "Earcon";
         private string shiftPreset = "Bell";
+        private double currentSpeed = 0;
+        private int currentGear = 0;
+        private double currentRpmPct = 0;
+        private double lastEntrySpeed = 0;
 
         public MainWindow()
         {
@@ -111,15 +115,38 @@ namespace LMUWeaver
                             if (isShiftBeepEnabled) CheckShiftLogic(myTel.mEngineRPM, myTel.mEngineMaxRPM);
 
                             double throttle = myTel.mUnfilteredThrottle;
-                            double brake = myTel.mUnfilteredBrake;
+                            double brake    = myTel.mUnfilteredBrake;
+                            double spd      = Math.Sqrt(myTel.mLocalVel.x * myTel.mLocalVel.x + myTel.mLocalVel.z * myTel.mLocalVel.z) * 3.6;
+                            int    gearNow  = myTel.mGear;
+                            double rpmPct   = myTel.mEngineMaxRPM > 0 ? myTel.mEngineRPM / myTel.mEngineMaxRPM : 0;
+                            currentSpeed    = spd;
+                            currentGear     = gearNow;
+                            currentRpmPct   = rpmPct;
                             Dispatcher.Invoke(() => {
                                 TxtDistance.Text = $"{currentDistance:F1} m";
                                 var nextPoint = BrakingPoints.Where(p => p.Distance > currentDistance).OrderBy(p => p.Distance).FirstOrDefault();
                                 double? distToNext = nextPoint != null ? nextPoint.Distance - currentDistance : (double?)null;
                                 TxtNextBrake.Text = distToNext != null ? $"{distToNext.Value:F1} m" : "--- m";
+                                // Gear display
+                                TxtGear.Text = gearNow == -1 ? "R" : gearNow == 0 ? "N" : gearNow.ToString();
+                                TxtGear.Foreground = new System.Windows.Media.SolidColorBrush(gearNow == -1
+                                    ? System.Windows.Media.Color.FromRgb(255, 60, 60)
+                                    : gearNow == 0
+                                        ? System.Windows.Media.Color.FromRgb(255, 200, 0)
+                                        : System.Windows.Media.Color.FromRgb(0, 255, 204));
+                                // Speed
+                                TxtSpeed.Text = $"{spd:F0} km/h";
+                                // Entry speed: capture at warn1 trigger, show while in zone
+                                if (distToNext != null && distToNext.Value <= warn1Distance)
+                                    TxtEntrySpeed.Text = $"{lastEntrySpeed:F0} km/h";
+                                else
+                                    TxtEntrySpeed.Text = "—";
+                                // Trail
                                 trailData.Enqueue((throttle, brake));
                                 while (trailData.Count > TrailLength) trailData.Dequeue();
                                 RedrawTrail();
+                                // RPM bar
+                                RedrawRpmBar(rpmPct);
                                 _overlay?.Update(distToNext, warn1Distance, warn2Distance);
                             });
 
@@ -156,6 +183,39 @@ namespace LMUWeaver
             TrailBrake.Points = bPoints;
         }
 
+        private void RedrawRpmBar(double rpmPct)
+        {
+            double w = RpmCanvas.ActualWidth;
+            if (w <= 0) return;
+            double fillWidth = w * Math.Clamp(rpmPct, 0, 1);
+            RpmFill.Width = fillWidth;
+            // Color: green → yellow → orange → red as RPM rises toward shift point
+            System.Windows.Media.Color col;
+            if (rpmPct < 0.7)
+                col = System.Windows.Media.Color.FromRgb(0, 160, 80);
+            else if (rpmPct < shiftBeeperPercentage - 0.03)
+                col = LerpRpmColor(rpmPct, 0.7, shiftBeeperPercentage - 0.03,
+                    System.Windows.Media.Color.FromRgb(0, 160, 80),
+                    System.Windows.Media.Color.FromRgb(255, 160, 0));
+            else
+                col = LerpRpmColor(rpmPct, shiftBeeperPercentage - 0.03, 1.0,
+                    System.Windows.Media.Color.FromRgb(255, 160, 0),
+                    System.Windows.Media.Color.FromRgb(255, 30, 0));
+            RpmFill.Background = new System.Windows.Media.SolidColorBrush(col);
+            // Shift marker line position
+            System.Windows.Controls.Canvas.SetLeft(RpmMarker, w * shiftBeeperPercentage - 1);
+        }
+
+        private static System.Windows.Media.Color LerpRpmColor(double v, double lo, double hi,
+            System.Windows.Media.Color a, System.Windows.Media.Color b)
+        {
+            double t = Math.Clamp((v - lo) / (hi - lo), 0, 1);
+            return System.Windows.Media.Color.FromRgb(
+                (byte)(a.R + (b.R - a.R) * t),
+                (byte)(a.G + (b.G - a.G) * t),
+                (byte)(a.B + (b.B - a.B) * t));
+        }
+
         private void CheckBeeperLogic(double dist)
         {
             foreach (var bp in BrakingPoints)
@@ -164,7 +224,7 @@ namespace LMUWeaver
                 if (!beepStatus.ContainsKey(point)) beepStatus[point] = new bool[3];
 
                 if (dist >= point - warn1Distance && dist < point - (warn1Distance - 10) && !beepStatus[point][0])
-                { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; Task.Run(() => PlayBrakeBeep(p, 0)); beepStatus[point][0] = true; }
+                { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; lastEntrySpeed = currentSpeed; Task.Run(() => PlayBrakeBeep(p, 0)); beepStatus[point][0] = true; }
 
                 if (dist >= point - warn2Distance && dist < point - (warn2Distance - 10) && !beepStatus[point][1])
                 { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; Task.Run(() => PlayBrakeBeep(p, 1)); beepStatus[point][1] = true; }
@@ -356,8 +416,11 @@ namespace LMUWeaver
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
         private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
         private void SliderBgOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (BackgroundLayer != null && TxtBgOpacity != null) { BackgroundLayer.Opacity = e.NewValue / 100.0; TxtBgOpacity.Text = $"{e.NewValue:F0}%"; } }
-        private void VtTrack_Click(object sender, RoutedEventArgs e)   => PanelTrack.Visibility     = VtTrack.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
-        private void VtNext_Click(object sender, RoutedEventArgs e)    => PanelNextBrake.Visibility = VtNext.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtTrack_Click(object sender, RoutedEventArgs e)    => PanelTrack.Visibility      = VtTrack.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtGear_Click(object sender, RoutedEventArgs e)     => PanelGearSpeed.Visibility  = VtGear.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtRpm_Click(object sender, RoutedEventArgs e)      => RpmCanvas.Visibility       = VtRpm.IsChecked     == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtBspd_Click(object sender, RoutedEventArgs e)     => PanelEntrySpeed.Visibility = VtBspd.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtNext_Click(object sender, RoutedEventArgs e)     => PanelNextBrake.Visibility = VtNext.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
         private void VtDist_Click(object sender, RoutedEventArgs e)    => PanelLapDist.Visibility   = VtDist.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
         private void VtTrail_Click(object sender, RoutedEventArgs e)   => TrailCanvas.Visibility    = VtTrail.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
         private void VtOverlay_Click(object sender, RoutedEventArgs e)

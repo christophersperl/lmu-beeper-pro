@@ -177,9 +177,10 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>  <!-- 0: main display -->
                     <RowDefinition Height="Auto"/>  <!-- 1: trail -->
-                    <RowDefinition Height="Auto"/>  <!-- 2: visibility chips -->
-                    <RowDefinition Height="Auto"/>  <!-- 3: settings button -->
-                    <RowDefinition Height="*"/>     <!-- 4: settings container -->
+                    <RowDefinition Height="Auto"/>  <!-- 2: RPM bar -->
+                    <RowDefinition Height="Auto"/>  <!-- 3: visibility chips -->
+                    <RowDefinition Height="Auto"/>  <!-- 4: settings button -->
+                    <RowDefinition Height="*"/>     <!-- 5: settings container -->
                 </Grid.RowDefinitions>
 
                 <!-- Close button floats top-right over row 0 -->
@@ -190,8 +191,27 @@
                 <StackPanel Grid.Row="0" Margin="0,0,0,2">
                     <StackPanel x:Name="PanelTrack">
                         <TextBlock x:Name="TxtTrack" Text="WAITING FOR SESSION..." Foreground="#FF888888"
-                                   FontSize="9" FontWeight="Bold" Margin="0,0,0,3" HorizontalAlignment="Center"/>
+                                   FontSize="9" FontWeight="Bold" Margin="0,0,0,2" HorizontalAlignment="Center"/>
                     </StackPanel>
+
+                    <!-- Gang + Geschwindigkeit + Einbremsgeschwindigkeit -->
+                    <Grid x:Name="PanelGearSpeed" Margin="0,0,0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="TxtGear" Grid.Column="0" Text="—" FontSize="32" FontWeight="Bold"
+                                   Foreground="#FF00FFCC" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Grid.Column="1" Width="1" Background="#22FFFFFF" Margin="6,4"/>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock x:Name="TxtSpeed" Text="— km/h" FontSize="13" FontWeight="Bold" Foreground="#FFDDDDDD"/>
+                            <StackPanel x:Name="PanelEntrySpeed" Orientation="Horizontal" Margin="0,1,0,0">
+                                <TextBlock Text="ENTRY " Foreground="#FF444444" FontSize="8" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtEntrySpeed" Text="—" Foreground="#FF888888" FontSize="8" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
 
                     <StackPanel x:Name="PanelNextBrake" HorizontalAlignment="Center">
                         <TextBlock Text="NEXT BRAKE POINT" Foreground="#FF444444" FontSize="8" FontWeight="Bold"
@@ -218,22 +238,32 @@
                     <TextBlock Text="BRK" Foreground="#33D00000" FontSize="7" FontWeight="Bold" Canvas.Left="3" Canvas.Top="12"/>
                 </Canvas>
 
-                <!-- ROW 2: Visibility chips -->
-                <WrapPanel Grid.Row="2" Margin="0,0,0,4" Orientation="Horizontal">
-                    <ToggleButton x:Name="VtTrack"   Content="TRACK"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrack_Click"   Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtNext"    Content="NEXT"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtNext_Click"    Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtDist"    Content="DIST"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtDist_Click"    Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtTrail"   Content="TRAIL"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrail_Click"   Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtOverlay" Content="OVERLAY" IsChecked="False" Style="{StaticResource VisChip}" Click="VtOverlay_Click"/>
+                <!-- ROW 2: RPM Shift bar -->
+                <Canvas x:Name="RpmCanvas" Grid.Row="2" Height="7" Margin="0,0,0,4" ClipToBounds="True">
+                    <Border x:Name="RpmBg"     Background="#12FFFFFF" Width="9999" Height="7"/>
+                    <Border x:Name="RpmFill"   Height="7" Width="0"/>
+                    <Border x:Name="RpmMarker" Background="#88FFFFFF" Width="2" Height="7"/>
+                </Canvas>
+
+                <!-- ROW 3: Visibility chips -->
+                <WrapPanel Grid.Row="3" Margin="0,0,0,4" Orientation="Horizontal">
+                    <ToggleButton x:Name="VtTrack"   Content="TRACK"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrack_Click"   Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtGear"    Content="GEAR"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtGear_Click"    Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtNext"    Content="NEXT"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtNext_Click"    Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtDist"    Content="DIST"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtDist_Click"    Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtTrail"   Content="TRAIL"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrail_Click"   Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtRpm"     Content="RPM"     IsChecked="True"  Style="{StaticResource VisChip}" Click="VtRpm_Click"     Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtBspd"    Content="BSPD"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtBspd_Click"    Margin="0,0,3,3"/>
+                    <ToggleButton x:Name="VtOverlay" Content="OVERLAY" IsChecked="False" Style="{StaticResource VisChip}" Click="VtOverlay_Click" Margin="0,0,0,3"/>
                 </WrapPanel>
 
-                <!-- ROW 3: Settings toggle button -->
-                <Button x:Name="BtnToggleSettings" Grid.Row="3" Content="▼ SETTINGS"
+                <!-- ROW 4: Settings toggle button -->
+                <Button x:Name="BtnToggleSettings" Grid.Row="4" Content="▼ SETTINGS"
                         Click="BtnToggleSettings_Click" Background="Transparent" Foreground="#FF444444"
                         FontSize="9" FontWeight="Bold" Margin="0,0,0,4" HorizontalAlignment="Left"/>
 
-                <!-- ROW 4: Settings container -->
-                <Grid x:Name="SettingsContainer" Grid.Row="4">
+                <!-- ROW 5: Settings container -->
+                <Grid x:Name="SettingsContainer" Grid.Row="5">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
