@@ -516,5 +516,11 @@ namespace LMUWeaver
                 BtnToggleSound.Content = "▼ SOUND";
             }
         }
+
+        private void KoFi_Click(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        }
     }
 }

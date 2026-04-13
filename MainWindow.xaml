@@ -181,6 +181,7 @@
                     <RowDefinition Height="Auto"/>  <!-- 3: visibility chips -->
                     <RowDefinition Height="Auto"/>  <!-- 4: settings button -->
                     <RowDefinition Height="*"/>     <!-- 5: settings container -->
+                    <RowDefinition Height="Auto"/>  <!-- 6: footer -->
                 </Grid.RowDefinitions>
 
                 <!-- Close button floats top-right over row 0 -->
@@ -427,6 +428,14 @@
                         </Grid>
                     </StackPanel>
                 </Grid>
+
+                <!-- ROW 6: Ko-fi footer -->
+                <TextBlock Grid.Row="6" HorizontalAlignment="Center" Margin="0,5,0,4" Cursor="Hand">
+                    <Hyperlink NavigateUri="https://ko-fi.com/christophersperl" RequestNavigate="KoFi_Click"
+                               TextDecorations="None">
+                        <Run Text="☕ ko-fi.com/christophersperl" FontSize="8" Foreground="#33FFFFFF"/>
+                    </Hyperlink>
+                </TextBlock>
             </Grid>
         </Border>
 
