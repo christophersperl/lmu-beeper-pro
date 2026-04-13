@@ -41,7 +41,7 @@ namespace LMUWeaver
         private DateTime lastBrakeBeepTime = DateTime.MinValue;
         private readonly Queue<(double throttle, double brake)> trailData = new();
         private const int TrailLength = 300;
-        private double expandedHeight = 540.0;
+        private double expandedHeight = 480.0;
 
         private volatile bool isBrakeBeepEnabled = true;
         private volatile bool isShiftBeepEnabled = true;
@@ -298,6 +298,11 @@ namespace LMUWeaver
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
         private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
         private void SliderBgOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (BackgroundLayer != null && TxtBgOpacity != null) { BackgroundLayer.Opacity = e.NewValue / 100.0; TxtBgOpacity.Text = $"{e.NewValue:F0}%"; } }
+        private void VtTrack_Click(object sender, RoutedEventArgs e)  => PanelTrack.Visibility  = VtTrack.IsChecked  == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtNext_Click(object sender, RoutedEventArgs e)   => PanelNextBrake.Visibility = VtNext.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtDist_Click(object sender, RoutedEventArgs e)   => PanelLapDist.Visibility   = VtDist.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtTrail_Click(object sender, RoutedEventArgs e)  => TrailCanvas.Visibility    = VtTrail.IsChecked  == true ? Visibility.Visible : Visibility.Collapsed;
+
         private void ComboBrakePreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboBrakePreset.SelectedItem is ComboBoxItem item) brakePreset = item.Content.ToString() ?? "Chime"; }
         private void ComboShiftPreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboShiftPreset.SelectedItem is ComboBoxItem item) shiftPreset = item.Content.ToString() ?? "Double"; }
         private void ResetBeepStatus() => beepStatus.Clear();
