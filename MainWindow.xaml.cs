@@ -36,7 +36,7 @@ namespace LMUWeaver
 
         private double warn1Distance = 100.0;
         private double warn2Distance = 50.0;
-        private double shiftBeeperPercentage = 0.96;
+        private double shiftBeeperPercentage = 0.97;
         private bool shiftBeepPlayed = false;
         private double expandedHeight = 540.0;
 
