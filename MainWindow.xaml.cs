@@ -213,6 +213,7 @@ namespace LMUWeaver
         private void SliderWarn1_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn1 != null) { warn1Distance = e.NewValue; TxtWarn1.Text = $"{warn1Distance:F0}"; ResetBeepStatus(); } }
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
         private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
+        private void SliderBgOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (BackgroundLayer != null && TxtBgOpacity != null) { BackgroundLayer.Opacity = e.NewValue / 100.0; TxtBgOpacity.Text = $"{e.NewValue:F0}%"; } }
         private void ResetBeepStatus() => beepStatus.Clear();
 
         private void BtnAddPoint_Click(object sender, RoutedEventArgs e)

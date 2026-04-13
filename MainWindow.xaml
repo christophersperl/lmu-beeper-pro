@@ -76,7 +76,9 @@
     </Window.Resources>
 
     <Grid>
-        <Border Background="{StaticResource CarbonBrush}" Padding="10" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="0">
+        <!-- Separate background layer so opacity doesn't affect content -->
+        <Border x:Name="BackgroundLayer" Background="{StaticResource CarbonBrush}" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="0"/>
+        <Border Padding="10">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -178,14 +180,28 @@
                         </Grid>
                     </StackPanel>
 
-                    <Grid Grid.Row="3" Margin="0,15,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Content="IMPORT FILE" Click="BtnImportFile_Click" Background="#FF333333" Height="25" FontSize="10" FontWeight="Bold" Margin="0,0,2,0"/>
-                        <Button Content="SAVE LOCAL" Click="BtnExport_Click" Grid.Column="1" Background="#FF333333" Height="25" FontSize="10" FontWeight="Bold" Margin="2,0,0,0"/>
-                    </Grid>
+                    <StackPanel Grid.Row="3" Margin="0,10,0,0">
+                        <TextBlock Text="BACKGROUND OPACITY" Foreground="#FF666666" FontSize="9" FontWeight="Bold" Margin="0,0,0,2"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="35"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Alpha:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                            <Slider x:Name="SliderBgOpacity" Grid.Column="1" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="SliderBgOpacity_ValueChanged"/>
+                            <TextBlock x:Name="TxtBgOpacity" Grid.Column="2" Text="100%" Foreground="#FF00FFCC" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Content="IMPORT FILE" Click="BtnImportFile_Click" Background="#FF333333" Height="25" FontSize="10" FontWeight="Bold" Margin="0,0,2,0"/>
+                            <Button Content="SAVE LOCAL" Click="BtnExport_Click" Grid.Column="1" Background="#FF333333" Height="25" FontSize="10" FontWeight="Bold" Margin="2,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
                 </Grid>
             </Grid>
         </Border>
