@@ -41,6 +41,7 @@ namespace LMUWeaver
         private DateTime lastBrakeBeepTime = DateTime.MinValue;
         private readonly Queue<(double throttle, double brake)> trailData = new();
         private const int TrailLength = 300;
+        private BrakeOverlay? _overlay;
         private double expandedHeight = 480.0;
 
         private volatile bool isBrakeBeepEnabled = true;
@@ -114,10 +115,12 @@ namespace LMUWeaver
                             Dispatcher.Invoke(() => {
                                 TxtDistance.Text = $"{currentDistance:F1} m";
                                 var nextPoint = BrakingPoints.Where(p => p.Distance > currentDistance).OrderBy(p => p.Distance).FirstOrDefault();
-                                TxtNextBrake.Text = nextPoint != null ? $"{(nextPoint.Distance - currentDistance):F1} m" : "--- m";
+                                double? distToNext = nextPoint != null ? nextPoint.Distance - currentDistance : (double?)null;
+                                TxtNextBrake.Text = distToNext != null ? $"{distToNext.Value:F1} m" : "--- m";
                                 trailData.Enqueue((throttle, brake));
                                 while (trailData.Count > TrailLength) trailData.Dequeue();
                                 RedrawTrail();
+                                _overlay?.Update(distToNext, warn1Distance, warn2Distance);
                             });
 
                             telAcc.SafeMemoryMappedViewHandle.ReleasePointer();
@@ -353,10 +356,19 @@ namespace LMUWeaver
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
         private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
         private void SliderBgOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (BackgroundLayer != null && TxtBgOpacity != null) { BackgroundLayer.Opacity = e.NewValue / 100.0; TxtBgOpacity.Text = $"{e.NewValue:F0}%"; } }
-        private void VtTrack_Click(object sender, RoutedEventArgs e)  => PanelTrack.Visibility  = VtTrack.IsChecked  == true ? Visibility.Visible : Visibility.Collapsed;
-        private void VtNext_Click(object sender, RoutedEventArgs e)   => PanelNextBrake.Visibility = VtNext.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
-        private void VtDist_Click(object sender, RoutedEventArgs e)   => PanelLapDist.Visibility   = VtDist.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
-        private void VtTrail_Click(object sender, RoutedEventArgs e)  => TrailCanvas.Visibility    = VtTrail.IsChecked  == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtTrack_Click(object sender, RoutedEventArgs e)   => PanelTrack.Visibility     = VtTrack.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtNext_Click(object sender, RoutedEventArgs e)    => PanelNextBrake.Visibility = VtNext.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtDist_Click(object sender, RoutedEventArgs e)    => PanelLapDist.Visibility   = VtDist.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtTrail_Click(object sender, RoutedEventArgs e)   => TrailCanvas.Visibility    = VtTrail.IsChecked   == true ? Visibility.Visible : Visibility.Collapsed;
+        private void VtOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (VtOverlay.IsChecked == true)
+            {
+                if (_overlay == null) { _overlay = new BrakeOverlay(); _overlay.Closed += (s, _) => { _overlay = null; VtOverlay.IsChecked = false; }; }
+                _overlay.Show();
+            }
+            else { _overlay?.Hide(); }
+        }
 
         private void ComboBrakePreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboBrakePreset.SelectedItem is ComboBoxItem item) brakePreset = item.Content.ToString() ?? "Chime"; }
         private void ComboShiftPreset_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (ComboShiftPreset.SelectedItem is ComboBoxItem item) shiftPreset = item.Content.ToString() ?? "Double"; }
@@ -409,7 +421,7 @@ namespace LMUWeaver
 
         private void Window_MouseDown(object sender, MouseButtonEventArgs e) { if (e.ChangedButton == MouseButton.Left) DragMove(); }
         private void ResizeThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e) { this.Width = Math.Max(this.MinWidth, this.Width + e.HorizontalChange); this.Height = Math.Max(this.MinHeight, this.Height + e.VerticalChange); }
-        private void BtnClose_Click(object sender, RoutedEventArgs e) { SaveLocalPoints(); Environment.Exit(0); }
+        private void BtnClose_Click(object sender, RoutedEventArgs e) { SaveLocalPoints(); _overlay?.Close(); Environment.Exit(0); }
 
         private void BtnToggleSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -417,14 +429,28 @@ namespace LMUWeaver
             {
                 expandedHeight = this.Height;
                 SettingsContainer.Visibility = Visibility.Collapsed;
-                BtnToggleSettings.Content = "▶ SHOW SETTINGS";
-                this.MinHeight = 150; this.Height = 150;
+                BtnToggleSettings.Content = "▶ SETTINGS";
+                this.MinHeight = 100; this.Height = 100;
             }
             else
             {
                 SettingsContainer.Visibility = Visibility.Visible;
-                BtnToggleSettings.Content = "▼ HIDE SETTINGS";
-                this.Height = expandedHeight; this.MinHeight = 300;
+                BtnToggleSettings.Content = "▼ SETTINGS";
+                this.Height = expandedHeight; this.MinHeight = 160;
+            }
+        }
+
+        private void BtnToggleSound_Click(object sender, RoutedEventArgs e)
+        {
+            if (SoundContainer.Visibility == Visibility.Visible)
+            {
+                SoundContainer.Visibility = Visibility.Collapsed;
+                BtnToggleSound.Content = "▶ SOUND";
+            }
+            else
+            {
+                SoundContainer.Visibility = Visibility.Visible;
+                BtnToggleSound.Content = "▼ SOUND";
             }
         }
     }

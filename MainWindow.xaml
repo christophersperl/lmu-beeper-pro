@@ -220,10 +220,11 @@
 
                 <!-- ROW 2: Visibility chips -->
                 <WrapPanel Grid.Row="2" Margin="0,0,0,4" Orientation="Horizontal">
-                    <ToggleButton x:Name="VtTrack"  Content="TRACK" IsChecked="True" Style="{StaticResource VisChip}" Click="VtTrack_Click"  Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtNext"   Content="NEXT"  IsChecked="True" Style="{StaticResource VisChip}" Click="VtNext_Click"   Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtDist"   Content="DIST"  IsChecked="True" Style="{StaticResource VisChip}" Click="VtDist_Click"   Margin="0,0,3,0"/>
-                    <ToggleButton x:Name="VtTrail"  Content="TRAIL" IsChecked="True" Style="{StaticResource VisChip}" Click="VtTrail_Click"/>
+                    <ToggleButton x:Name="VtTrack"   Content="TRACK"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrack_Click"   Margin="0,0,3,0"/>
+                    <ToggleButton x:Name="VtNext"    Content="NEXT"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtNext_Click"    Margin="0,0,3,0"/>
+                    <ToggleButton x:Name="VtDist"    Content="DIST"    IsChecked="True"  Style="{StaticResource VisChip}" Click="VtDist_Click"    Margin="0,0,3,0"/>
+                    <ToggleButton x:Name="VtTrail"   Content="TRAIL"   IsChecked="True"  Style="{StaticResource VisChip}" Click="VtTrail_Click"   Margin="0,0,3,0"/>
+                    <ToggleButton x:Name="VtOverlay" Content="OVERLAY" IsChecked="False" Style="{StaticResource VisChip}" Click="VtOverlay_Click"/>
                 </WrapPanel>
 
                 <!-- ROW 3: Settings toggle button -->
@@ -238,29 +239,45 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <Button Grid.Row="0" Content="SET BRAKING POINT" Click="BtnAddPoint_Click"
                             Height="26" Background="#FF00FFCC" Foreground="Black" FontWeight="Bold" Margin="0,0,0,6"/>
 
                     <ListBox x:Name="ListPoints" Grid.Row="1" Background="#11FFFFFF" BorderThickness="0"
-                             Foreground="White" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             Foreground="White" HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="4">
+                                <Border BorderBrush="#22FFFFFF" BorderThickness="0,0,0,1" Padding="6,4">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{Binding Distance, StringFormat={}{0:F1} m}"
-                                                   VerticalAlignment="Center" FontSize="12" FontWeight="Bold"
+                                                   VerticalAlignment="Center" FontSize="13" FontWeight="Bold"
                                                    Foreground="#FFFF8C00"/>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                            <Button Content="-" Click="BtnMinus_Click" Tag="{Binding}" Width="18" Height="18" Margin="0,0,2,0"/>
-                                            <Button Content="+" Click="BtnPlus_Click"  Tag="{Binding}" Width="18" Height="18" Margin="0,0,6,0"/>
-                                            <Button Content="✕" Click="BtnDeletePoint_Click" Tag="{Binding}" Width="18" Height="18" Background="Transparent" Foreground="#FF4444"/>
+                                            <Button Content="−" Click="BtnMinus_Click" Tag="{Binding}" Width="22" Height="22" Margin="0,0,2,0"/>
+                                            <Button Content="+" Click="BtnPlus_Click"  Tag="{Binding}" Width="22" Height="22" Margin="0,0,6,0"/>
+                                            <Button Content="✕" Click="BtnDeletePoint_Click" Tag="{Binding}" Width="22" Height="22" Background="Transparent" Foreground="#FF4444"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -268,7 +285,13 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                    <!-- Sound section toggle -->
+                    <Button x:Name="BtnToggleSound" Grid.Row="2" Content="▼ SOUND"
+                            Click="BtnToggleSound_Click" Background="Transparent" Foreground="#FF444444"
+                            FontSize="9" FontWeight="Bold" Margin="0,6,0,2" HorizontalAlignment="Left"/>
+
+                    <!-- Sound section (collapsible) -->
+                    <StackPanel x:Name="SoundContainer" Grid.Row="3" Margin="0,0,0,0">
                         <!-- Sound toggles -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8" HorizontalAlignment="Center">
                             <CheckBox x:Name="ToggleBrake" Content="BRAKE BEEPS" Style="{StaticResource MetroSwitch}"
@@ -349,7 +372,7 @@
                         </Grid>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="3" Margin="0,8,0,0">
+                    <StackPanel Grid.Row="4" Margin="0,8,0,0">
                         <!-- Background opacity -->
                         <TextBlock Text="BACKGROUND OPACITY" Foreground="#FF555555" FontSize="8" FontWeight="Bold" Margin="0,0,0,2"/>
                         <Grid Margin="0,0,0,8">
