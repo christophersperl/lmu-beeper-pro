@@ -169,10 +169,14 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                    <ProgressBar x:Name="BarGas" Minimum="0" Maximum="1" Height="6" Foreground="#FF00D000" Background="#22000000" BorderThickness="0" Margin="0,0,0,2"/>
-                    <ProgressBar x:Name="BarBrake" Minimum="0" Maximum="1" Height="6" Foreground="#FFD00000" Background="#22000000" BorderThickness="0"/>
-                </StackPanel>
+                <Canvas x:Name="TrailCanvas" Grid.Row="1" Height="58" Margin="0,2,0,6" Background="#0CFFFFFF" ClipToBounds="True">
+                    <!-- Center reference line -->
+                    <Line X1="0" Y1="29" X2="9999" Y2="29" Stroke="#18FFFFFF" StrokeThickness="1"/>
+                    <Polyline x:Name="TrailThrottle" Stroke="#CC00D000" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                    <Polyline x:Name="TrailBrake"    Stroke="#CCD00000" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                    <TextBlock Text="GAS" Foreground="#4400D000" FontSize="7" FontWeight="Bold" Canvas.Left="3" Canvas.Top="2"/>
+                    <TextBlock Text="BRK" Foreground="#44D00000" FontSize="7" FontWeight="Bold" Canvas.Left="3" Canvas.Top="13"/>
+                </Canvas>
 
                 <Button x:Name="BtnToggleSettings" Grid.Row="2" Content="▼ SETTINGS" Click="BtnToggleSettings_Click" Background="Transparent" Foreground="#FF555555" FontSize="10" FontWeight="Bold" Margin="0,0,0,5" HorizontalAlignment="Left"/>
 

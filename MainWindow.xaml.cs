@@ -39,6 +39,8 @@ namespace LMUWeaver
         private double shiftBeeperPercentage = 0.97;
         private bool shiftBeepPlayed = false;
         private DateTime lastBrakeBeepTime = DateTime.MinValue;
+        private readonly Queue<(double throttle, double brake)> trailData = new();
+        private const int TrailLength = 300;
         private double expandedHeight = 540.0;
 
         private volatile bool isBrakeBeepEnabled = true;
@@ -107,12 +109,15 @@ namespace LMUWeaver
                             if (isBrakeBeepEnabled) CheckBeeperLogic(currentDistance);
                             if (isShiftBeepEnabled) CheckShiftLogic(myTel.mEngineRPM, myTel.mEngineMaxRPM);
 
+                            double throttle = myTel.mUnfilteredThrottle;
+                            double brake = myTel.mUnfilteredBrake;
                             Dispatcher.Invoke(() => {
                                 TxtDistance.Text = $"{currentDistance:F1} m";
                                 var nextPoint = BrakingPoints.Where(p => p.Distance > currentDistance).OrderBy(p => p.Distance).FirstOrDefault();
                                 TxtNextBrake.Text = nextPoint != null ? $"{(nextPoint.Distance - currentDistance):F1} m" : "--- m";
-                                BarGas.Value = myTel.mUnfilteredThrottle;
-                                BarBrake.Value = myTel.mUnfilteredBrake;
+                                trailData.Enqueue((throttle, brake));
+                                while (trailData.Count > TrailLength) trailData.Dequeue();
+                                RedrawTrail();
                             });
 
                             telAcc.SafeMemoryMappedViewHandle.ReleasePointer();
@@ -123,6 +128,29 @@ namespace LMUWeaver
                 catch { telMmf = null; scoMmf = null; }
                 Thread.Sleep(16);
             }
+        }
+
+        private void RedrawTrail()
+        {
+            double w = TrailCanvas.ActualWidth;
+            double h = TrailCanvas.ActualHeight;
+            if (w <= 0 || h <= 0 || trailData.Count < 2) return;
+
+            var data = trailData.ToArray();
+            int n = data.Length;
+            double step = w / (TrailLength - 1);
+
+            var tPoints = new System.Windows.Media.PointCollection(n);
+            var bPoints = new System.Windows.Media.PointCollection(n);
+            int offset = TrailLength - n;
+            for (int i = 0; i < n; i++)
+            {
+                double x = (offset + i) * step;
+                tPoints.Add(new System.Windows.Point(x, h - data[i].throttle * h));
+                bPoints.Add(new System.Windows.Point(x, h - data[i].brake * h));
+            }
+            TrailThrottle.Points = tPoints;
+            TrailBrake.Points = bPoints;
         }
 
         private void CheckBeeperLogic(double dist)
