@@ -35,9 +35,10 @@ namespace LMUWeaver
         private double currentDistance = 0;
 
         private double warn1Distance = 100.0;
-        private double warn2Distance = 50.0;
+        private double warn2Distance = 35.0;
         private double shiftBeeperPercentage = 0.97;
         private bool shiftBeepPlayed = false;
+        private DateTime lastBrakeBeepTime = DateTime.MinValue;
         private double expandedHeight = 540.0;
 
         private volatile bool isBrakeBeepEnabled = true;
@@ -132,13 +133,13 @@ namespace LMUWeaver
                 if (!beepStatus.ContainsKey(point)) beepStatus[point] = new bool[3];
 
                 if (dist >= point - warn1Distance && dist < point - (warn1Distance - 10) && !beepStatus[point][0])
-                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 0)); beepStatus[point][0] = true; }
+                { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; Task.Run(() => PlayBrakeBeep(p, 0)); beepStatus[point][0] = true; }
 
                 if (dist >= point - warn2Distance && dist < point - (warn2Distance - 10) && !beepStatus[point][1])
-                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 1)); beepStatus[point][1] = true; }
+                { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; Task.Run(() => PlayBrakeBeep(p, 1)); beepStatus[point][1] = true; }
 
                 if (dist >= point - 5 && dist < point + 5 && !beepStatus[point][2])
-                { string p = brakePreset; Task.Run(() => PlayBrakeBeep(p, 2)); beepStatus[point][2] = true; }
+                { string p = brakePreset; lastBrakeBeepTime = DateTime.Now; Task.Run(() => PlayBrakeBeep(p, 2)); beepStatus[point][2] = true; }
             }
         }
 
@@ -177,7 +178,11 @@ namespace LMUWeaver
             if (maxRpm <= 0) return;
             double shiftPoint = maxRpm * shiftBeeperPercentage;
             if (currentRpm >= shiftPoint && !shiftBeepPlayed)
-            { string p = shiftPreset; Task.Run(() => PlayShiftBeep(p)); shiftBeepPlayed = true; }
+            {
+                shiftBeepPlayed = true;
+                if ((DateTime.Now - lastBrakeBeepTime).TotalMilliseconds > 600)
+                { string p = shiftPreset; Task.Run(() => PlayShiftBeep(p)); }
+            }
             else if (currentRpm < shiftPoint - 200) { shiftBeepPlayed = false; }
         }
 
