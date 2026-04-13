@@ -212,7 +212,7 @@ namespace LMUWeaver
         private void ToggleShift_Changed(object sender, RoutedEventArgs e) { if (ToggleShift != null) isShiftBeepEnabled = ToggleShift.IsChecked ?? false; }
         private void SliderWarn1_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn1 != null) { warn1Distance = e.NewValue; TxtWarn1.Text = $"{warn1Distance:F0}"; ResetBeepStatus(); } }
         private void SliderWarn2_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtWarn2 != null) { warn2Distance = e.NewValue; TxtWarn2.Text = $"{warn2Distance:F0}"; ResetBeepStatus(); } }
-        private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F0}%"; shiftBeepPlayed = false; } }
+        private void SliderShift_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) { if (TxtShift != null) { shiftBeeperPercentage = e.NewValue / 100.0; TxtShift.Text = $"{e.NewValue:F1}%"; shiftBeepPlayed = false; } }
         private void ResetBeepStatus() => beepStatus.Clear();
 
         private void BtnAddPoint_Click(object sender, RoutedEventArgs e)

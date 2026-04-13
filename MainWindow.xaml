@@ -173,7 +173,7 @@
                                 <ColumnDefinition Width="35"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Trigger:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
-                            <Slider x:Name="SliderShift" Grid.Column="1" Minimum="80" Maximum="100" Value="96" Margin="5,0" ValueChanged="SliderShift_ValueChanged"/>
+                            <Slider x:Name="SliderShift" Grid.Column="1" Minimum="88" Maximum="100" Value="96" TickFrequency="0.1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="SliderShift_ValueChanged"/>
                             <TextBlock x:Name="TxtShift" Grid.Column="2" Text="96%" Foreground="#FF00FFCC" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>
