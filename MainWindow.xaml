@@ -418,6 +418,16 @@
                             <TextBlock x:Name="TxtBgOpacity" Grid.Column="2" Text="100%" Foreground="#FF00FFCC" FontSize="10" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
+                        <!-- Theme selector -->
+                        <TextBlock Text="THEME" Foreground="#FF555555" FontSize="8" FontWeight="Bold" Margin="0,0,0,2"/>
+                        <ComboBox x:Name="ComboTheme" Style="{StaticResource DarkCombo}" SelectionChanged="ComboTheme_SelectionChanged" Margin="0,0,0,8">
+                            <ComboBoxItem Content="Carbon" IsSelected="True"/>
+                            <ComboBoxItem Content="Neon Drift"/>
+                            <ComboBoxItem Content="Anime Girl ♡"/>
+                            <ComboBoxItem Content="Ferrari"/>
+                            <ComboBoxItem Content="Night Sky"/>
+                        </ComboBox>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>

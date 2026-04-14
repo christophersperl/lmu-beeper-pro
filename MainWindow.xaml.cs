@@ -53,10 +53,40 @@ namespace LMUWeaver
         private double currentRpmPct = 0;
         private double lastEntrySpeed = 0;
 
+        // ── Themes ──────────────────────────────────────────────────────────
+        private sealed class ThemeConfig
+        {
+            public required string Name              { get; init; }
+            public required Func<System.Windows.Media.Brush> MakeBg { get; init; }
+            public required System.Windows.Media.Color BorderColor     { get; init; }
+            public required System.Windows.Media.Color AccentColor     { get; init; }
+            public required System.Windows.Media.Color WarnColor       { get; init; }
+            public required System.Windows.Media.Color TextColor       { get; init; }
+            public required System.Windows.Media.Color SubTextColor    { get; init; }
+            public required System.Windows.Media.Color TrailGasColor   { get; init; }
+            public required System.Windows.Media.Color TrailBrakeColor { get; init; }
+            public required System.Windows.Media.Color TrailBgColor    { get; init; }
+            public required System.Windows.Media.Color RpmLow          { get; init; }
+            public required System.Windows.Media.Color RpmMid          { get; init; }
+            public required System.Windows.Media.Color RpmHigh         { get; init; }
+            public required System.Windows.Media.Color RpmMarkerColor  { get; init; }
+            public required double RpmBarHeight  { get; init; }
+            public required double TrailHeight   { get; init; }
+            public required double BrakeFontSize { get; init; }
+            public required double GearFontSize  { get; init; }
+        }
+        private ThemeConfig[] _allThemes = null!;
+        private ThemeConfig   _theme     = null!;
+
+        private static System.Windows.Media.Color C(byte a, byte r, byte g, byte b)
+            => System.Windows.Media.Color.FromArgb(a, r, g, b);
+
         public MainWindow()
         {
             InitializeComponent();
             ListPoints.ItemsSource = BrakingPoints;
+            InitThemes();
+            ApplyTheme(_allThemes[0]);
             Task.Run(() => ReadTelemetryLoop());
         }
 
@@ -133,7 +163,7 @@ namespace LMUWeaver
                                     ? System.Windows.Media.Color.FromRgb(255, 60, 60)
                                     : gearNow == 0
                                         ? System.Windows.Media.Color.FromRgb(255, 200, 0)
-                                        : System.Windows.Media.Color.FromRgb(0, 255, 204));
+                                        : _theme.AccentColor);
                                 // Speed
                                 TxtSpeed.Text = $"{spd:F0} km/h";
                                 // Entry speed: capture at warn1 trigger, show while in zone
@@ -185,24 +215,19 @@ namespace LMUWeaver
 
         private void RedrawRpmBar(double rpmPct)
         {
+            if (_theme == null) return;
             double w = RpmCanvas.ActualWidth;
             if (w <= 0) return;
             double fillWidth = w * Math.Clamp(rpmPct, 0, 1);
             RpmFill.Width = fillWidth;
-            // Color: green → yellow → orange → red as RPM rises toward shift point
             System.Windows.Media.Color col;
             if (rpmPct < 0.7)
-                col = System.Windows.Media.Color.FromRgb(0, 160, 80);
+                col = _theme.RpmLow;
             else if (rpmPct < shiftBeeperPercentage - 0.03)
-                col = LerpRpmColor(rpmPct, 0.7, shiftBeeperPercentage - 0.03,
-                    System.Windows.Media.Color.FromRgb(0, 160, 80),
-                    System.Windows.Media.Color.FromRgb(255, 160, 0));
+                col = LerpRpmColor(rpmPct, 0.7, shiftBeeperPercentage - 0.03, _theme.RpmLow, _theme.RpmMid);
             else
-                col = LerpRpmColor(rpmPct, shiftBeeperPercentage - 0.03, 1.0,
-                    System.Windows.Media.Color.FromRgb(255, 160, 0),
-                    System.Windows.Media.Color.FromRgb(255, 30, 0));
+                col = LerpRpmColor(rpmPct, shiftBeeperPercentage - 0.03, 1.0, _theme.RpmMid, _theme.RpmHigh);
             RpmFill.Background = new System.Windows.Media.SolidColorBrush(col);
-            // Shift marker line position
             System.Windows.Controls.Canvas.SetLeft(RpmMarker, w * shiftBeeperPercentage - 1);
         }
 
@@ -515,6 +540,165 @@ namespace LMUWeaver
                 SoundContainer.Visibility = Visibility.Visible;
                 BtnToggleSound.Content = "▼ SOUND";
             }
+        }
+
+        private void InitThemes()
+        {
+            static System.Windows.Media.DrawingBrush MakeCarbon()
+            {
+                var dg = new System.Windows.Media.DrawingGroup();
+                dg.Children.Add(new System.Windows.Media.GeometryDrawing(
+                    new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x08, 0x08, 0x08)),
+                    null, new System.Windows.Media.RectangleGeometry(new Rect(0, 0, 8, 8))));
+                var gg = new System.Windows.Media.GeometryGroup();
+                gg.Children.Add(new System.Windows.Media.RectangleGeometry(new Rect(0, 0, 4, 4)));
+                gg.Children.Add(new System.Windows.Media.RectangleGeometry(new Rect(4, 4, 4, 4)));
+                dg.Children.Add(new System.Windows.Media.GeometryDrawing(
+                    new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x15, 0x15, 0x15)),
+                    null, gg));
+                return new System.Windows.Media.DrawingBrush(dg)
+                {
+                    TileMode = System.Windows.Media.TileMode.Tile,
+                    Viewport = new Rect(0, 0, 8, 8),
+                    ViewportUnits = System.Windows.Media.BrushMappingMode.Absolute
+                };
+            }
+
+            _allThemes = new[]
+            {
+                // ── 1. Carbon (default) ─────────────────────────────────────
+                new ThemeConfig {
+                    Name = "Carbon",
+                    MakeBg         = MakeCarbon,
+                    BorderColor    = C(0x33,0xFF,0xFF,0xFF),
+                    AccentColor    = C(0xFF,0x00,0xFF,0xCC),
+                    WarnColor      = C(0xFF,0xFF,0x8C,0x00),
+                    TextColor      = C(0xFF,0xDD,0xDD,0xDD),
+                    SubTextColor   = C(0xFF,0x88,0x88,0x88),
+                    TrailGasColor  = C(0xCC,0x00,0xD0,0x00),
+                    TrailBrakeColor= C(0xCC,0xD0,0x00,0x00),
+                    TrailBgColor   = C(0x0C,0xFF,0xFF,0xFF),
+                    RpmLow         = C(0xFF,0x00,0xA0,0x50),
+                    RpmMid         = C(0xFF,0xFF,0xA0,0x00),
+                    RpmHigh        = C(0xFF,0xFF,0x1E,0x00),
+                    RpmMarkerColor = C(0x88,0xFF,0xFF,0xFF),
+                    RpmBarHeight=7, TrailHeight=50, BrakeFontSize=30, GearFontSize=32 },
+
+                // ── 2. Neon Drift ────────────────────────────────────────────
+                new ThemeConfig {
+                    Name = "Neon Drift",
+                    MakeBg         = () => new System.Windows.Media.SolidColorBrush(C(0xFF,0x05,0x05,0x10)),
+                    BorderColor    = C(0x99,0xFF,0x00,0xFF),
+                    AccentColor    = C(0xFF,0xFF,0x00,0xFF),
+                    WarnColor      = C(0xFF,0x00,0xFF,0xFF),
+                    TextColor      = C(0xFF,0xEE,0xEE,0xFF),
+                    SubTextColor   = C(0xFF,0x88,0x88,0x99),
+                    TrailGasColor  = C(0xCC,0x00,0xFF,0xFF),
+                    TrailBrakeColor= C(0xCC,0xFF,0x00,0xFF),
+                    TrailBgColor   = C(0x0A,0x00,0x00,0x40),
+                    RpmLow         = C(0xFF,0x00,0x80,0xFF),
+                    RpmMid         = C(0xFF,0x88,0x00,0xFF),
+                    RpmHigh        = C(0xFF,0xFF,0x00,0xFF),
+                    RpmMarkerColor = C(0xFF,0xFF,0xFF,0x00),
+                    RpmBarHeight=12, TrailHeight=50, BrakeFontSize=28, GearFontSize=36 },
+
+                // ── 3. Anime Girl ♡ ──────────────────────────────────────────
+                new ThemeConfig {
+                    Name = "Anime Girl ♡",
+                    MakeBg = () => {
+                        var lb = new System.Windows.Media.LinearGradientBrush();
+                        lb.StartPoint = new System.Windows.Point(0, 0);
+                        lb.EndPoint   = new System.Windows.Point(1, 1);
+                        lb.GradientStops.Add(new System.Windows.Media.GradientStop(C(0xFF,0x1E,0x06,0x14), 0));
+                        lb.GradientStops.Add(new System.Windows.Media.GradientStop(C(0xFF,0x0A,0x02,0x0A), 1));
+                        return lb; },
+                    BorderColor    = C(0x99,0xFF,0x69,0xB4),
+                    AccentColor    = C(0xFF,0xFF,0x69,0xB4),
+                    WarnColor      = C(0xFF,0xFF,0xD7,0x00),
+                    TextColor      = C(0xFF,0xFF,0xE4,0xF0),
+                    SubTextColor   = C(0xFF,0xFF,0x99,0xCC),
+                    TrailGasColor  = C(0xCC,0xFF,0x69,0xB4),
+                    TrailBrakeColor= C(0xCC,0xFF,0x14,0x93),
+                    TrailBgColor   = C(0x0A,0xFF,0x69,0xB4),
+                    RpmLow         = C(0xFF,0xFF,0x69,0xB4),
+                    RpmMid         = C(0xFF,0xFF,0x9F,0xC6),
+                    RpmHigh        = C(0xFF,0xFF,0x14,0x93),
+                    RpmMarkerColor = C(0xFF,0xFF,0xD7,0x00),
+                    RpmBarHeight=14, TrailHeight=35, BrakeFontSize=26, GearFontSize=30 },
+
+                // ── 4. Ferrari ───────────────────────────────────────────────
+                new ThemeConfig {
+                    Name = "Ferrari",
+                    MakeBg         = () => new System.Windows.Media.SolidColorBrush(C(0xFF,0x10,0x00,0x00)),
+                    BorderColor    = C(0x88,0xFF,0x20,0x20),
+                    AccentColor    = C(0xFF,0xFF,0x30,0x30),
+                    WarnColor      = C(0xFF,0xFF,0xD7,0x00),
+                    TextColor      = C(0xFF,0xFF,0xFF,0xFF),
+                    SubTextColor   = C(0xFF,0xAA,0xAA,0xAA),
+                    TrailGasColor  = C(0xCC,0x00,0xE0,0x60),
+                    TrailBrakeColor= C(0xCC,0xFF,0x20,0x20),
+                    TrailBgColor   = C(0x0C,0xFF,0x20,0x20),
+                    RpmLow         = C(0xFF,0x00,0xCC,0x40),
+                    RpmMid         = C(0xFF,0xFF,0x88,0x00),
+                    RpmHigh        = C(0xFF,0xFF,0x20,0x20),
+                    RpmMarkerColor = C(0xFF,0xFF,0xD7,0x00),
+                    RpmBarHeight=7, TrailHeight=55, BrakeFontSize=32, GearFontSize=36 },
+
+                // ── 5. Night Sky ─────────────────────────────────────────────
+                new ThemeConfig {
+                    Name = "Night Sky",
+                    MakeBg         = () => new System.Windows.Media.SolidColorBrush(C(0xFF,0x05,0x08,0x14)),
+                    BorderColor    = C(0x66,0x44,0x88,0xFF),
+                    AccentColor    = C(0xFF,0x44,0x88,0xFF),
+                    WarnColor      = C(0xFF,0x88,0xDD,0xFF),
+                    TextColor      = C(0xFF,0xCC,0xDD,0xEE),
+                    SubTextColor   = C(0xFF,0x55,0x66,0x88),
+                    TrailGasColor  = C(0xCC,0x44,0xAA,0xFF),
+                    TrailBrakeColor= C(0xCC,0xFF,0x44,0x44),
+                    TrailBgColor   = C(0x0C,0x44,0x88,0xFF),
+                    RpmLow         = C(0xFF,0x22,0x55,0xAA),
+                    RpmMid         = C(0xFF,0x44,0x88,0xFF),
+                    RpmHigh        = C(0xFF,0x88,0xCC,0xFF),
+                    RpmMarkerColor = C(0x88,0xFF,0xFF,0xFF),
+                    RpmBarHeight=5, TrailHeight=45, BrakeFontSize=28, GearFontSize=32 },
+            };
+
+            _theme = _allThemes[0];
+        }
+
+        private void ApplyTheme(ThemeConfig t)
+        {
+            _theme = t;
+            BackgroundLayer.Background  = t.MakeBg();
+            BackgroundLayer.BorderBrush = new System.Windows.Media.SolidColorBrush(t.BorderColor);
+            // Text
+            TxtTrack.Foreground      = new System.Windows.Media.SolidColorBrush(t.SubTextColor);
+            TxtGear.Foreground       = new System.Windows.Media.SolidColorBrush(t.AccentColor);
+            TxtGear.FontSize         = t.GearFontSize;
+            TxtSpeed.Foreground      = new System.Windows.Media.SolidColorBrush(t.TextColor);
+            TxtNextBrake.Foreground  = new System.Windows.Media.SolidColorBrush(t.WarnColor);
+            TxtNextBrake.FontSize    = t.BrakeFontSize;
+            TxtDistance.Foreground   = new System.Windows.Media.SolidColorBrush(t.AccentColor);
+            TxtEntrySpeed.Foreground = new System.Windows.Media.SolidColorBrush(t.SubTextColor);
+            // Trail
+            TrailThrottle.Stroke   = new System.Windows.Media.SolidColorBrush(t.TrailGasColor);
+            TrailBrake.Stroke      = new System.Windows.Media.SolidColorBrush(t.TrailBrakeColor);
+            TrailCanvas.Background = new System.Windows.Media.SolidColorBrush(t.TrailBgColor);
+            TrailCanvas.Height     = t.TrailHeight;
+            // RPM bar
+            RpmCanvas.Height       = t.RpmBarHeight;
+            RpmBg.Height           = t.RpmBarHeight;
+            RpmFill.Height         = t.RpmBarHeight;
+            RpmMarker.Height       = t.RpmBarHeight;
+            RpmMarker.Background   = new System.Windows.Media.SolidColorBrush(t.RpmMarkerColor);
+            RedrawRpmBar(currentRpmPct);
+        }
+
+        private void ComboTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int idx = ComboTheme.SelectedIndex;
+            if (_allThemes != null && idx >= 0 && idx < _allThemes.Length)
+                ApplyTheme(_allThemes[idx]);
         }
 
         private void KoFi_Click(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
