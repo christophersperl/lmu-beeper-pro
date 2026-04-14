@@ -701,6 +701,25 @@ namespace LMUWeaver
                 ApplyTheme(_allThemes[idx]);
         }
 
+        // ── UI Scale ─────────────────────────────────────────────────────────
+        private double _uiScale = 1.0;
+
+        private void BtnScalePlus_Click(object sender, RoutedEventArgs e)  => SetScale(_uiScale + 0.1);
+        private void BtnScaleMinus_Click(object sender, RoutedEventArgs e) => SetScale(_uiScale - 0.1);
+
+        private void SetScale(double newScale)
+        {
+            double old = _uiScale;
+            _uiScale = Math.Clamp(Math.Round(newScale * 10) / 10.0, 0.5, 2.0);
+            UiScale.ScaleX = _uiScale;
+            UiScale.ScaleY = _uiScale;
+            double ratio = _uiScale / old;
+            Width          = Math.Max(MinWidth,  Width  * ratio);
+            Height         = Math.Max(MinHeight, Height * ratio);
+            expandedHeight *= ratio;
+            TxtScale.Text  = $"{(int)Math.Round(_uiScale * 100)}%";
+        }
+
         private void KoFi_Click(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
