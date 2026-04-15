@@ -424,30 +424,27 @@ namespace LMUWeaver
 
         private void BtnImportFile_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "JSON Dateien (*.json)|*.json";
-            openFileDialog.InitialDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-            if (openFileDialog.ShowDialog() == true)
+            var dlg = new OpenFileDialog
             {
-                try
-                {
-                    string json = File.ReadAllText(openFileDialog.FileName);
-                    var importedPoints = JsonSerializer.Deserialize<List<BrakingPoint>>(json);
-
-                    if (importedPoints != null)
-                    {
-                        BrakingPoints.Clear();
-                        foreach (var p in importedPoints) BrakingPoints.Add(p);
-                        SortAndRefreshList();
-                        SaveLocalPoints();
-                        MessageBox.Show("Braking points imported successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error importing file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                Filter           = "Brake Points (*.json)|*.json",
+                InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
+            };
+            if (dlg.ShowDialog() != true) return;
+            try
+            {
+                var imported = JsonSerializer.Deserialize<List<BrakingPoint>>(
+                    File.ReadAllText(dlg.FileName));
+                if (imported == null || imported.Count == 0)
+                    { MessageBox.Show("File contains no valid brake points.", "Import"); return; }
+                BrakingPoints.Clear();
+                foreach (var p in imported) BrakingPoints.Add(p);
+                SortAndRefreshList();
+                SaveLocalPoints();
+                MessageBox.Show($"Imported {imported.Count} brake points.", "Import OK");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Import failed:\n{ex.Message}", "Error");
             }
         }
 
@@ -502,23 +499,54 @@ namespace LMUWeaver
 
         private void BtnExport_Click(object sender, RoutedEventArgs e) => SaveLocalPoints();
 
+        // ── File path helpers ─────────────────────────────────────────────────
+
+        /// <summary>Strips characters that are invalid in Windows file names.</summary>
+        private static string SafeFileName(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            return string.Concat(name.Select(c => invalid.Contains(c) ? '_' : c));
+        }
+
+        /// <summary>Returns an absolute path in the exe's directory for the given suffix.</summary>
+        private string TrackFilePath(string suffix)
+        {
+            string dir  = AppDomain.CurrentDomain.BaseDirectory;
+            string file = SafeFileName(currentTrack) + suffix;
+            return Path.Combine(dir, file);
+        }
+
+        // ── Brake points save / load ──────────────────────────────────────────
+
         private void SaveLocalPoints()
         {
             if (string.IsNullOrEmpty(currentTrack)) return;
-            string json = JsonSerializer.Serialize(BrakingPoints, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText($"{currentTrack}.json", json);
+            try
+            {
+                string json = JsonSerializer.Serialize(BrakingPoints.ToList(),
+                    new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(TrackFilePath(".json"), json);
+            }
+            catch { /* silently ignore write errors (e.g. read-only media) */ }
             SaveNotes();
         }
 
         private void LoadLocalPoints()
         {
-            string path = $"{currentTrack}.json";
+            string path = TrackFilePath(".json");
             if (File.Exists(path))
             {
                 try
                 {
-                    var loaded = JsonSerializer.Deserialize<List<BrakingPoint>>(File.ReadAllText(path));
-                    if (loaded != null) { BrakingPoints.Clear(); foreach (var p in loaded.OrderBy(x => x.Distance)) BrakingPoints.Add(p); ResetBeepStatus(); }
+                    var loaded = JsonSerializer.Deserialize<List<BrakingPoint>>(
+                        File.ReadAllText(path));
+                    if (loaded != null)
+                    {
+                        BrakingPoints.Clear();
+                        foreach (var p in loaded.OrderBy(x => x.Distance))
+                            BrakingPoints.Add(p);
+                        ResetBeepStatus();
+                    }
                 }
                 catch { }
             }
@@ -530,21 +558,28 @@ namespace LMUWeaver
         private void SaveNotes()
         {
             if (string.IsNullOrEmpty(currentTrack)) return;
-            File.WriteAllText($"{currentTrack}_notes.json",
-                JsonSerializer.Serialize(PaceNotes.ToList(), new JsonSerializerOptions { WriteIndented = true }));
+            try
+            {
+                File.WriteAllText(TrackFilePath("_notes.json"),
+                    JsonSerializer.Serialize(PaceNotes.ToList(),
+                        new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
         }
 
         private void LoadNotes()
         {
-            string path = $"{currentTrack}_notes.json";
+            string path = TrackFilePath("_notes.json");
             PaceNotes.Clear();
             _notesFiredThisLap.Clear();
             if (!File.Exists(path)) return;
             try
             {
-                var loaded = JsonSerializer.Deserialize<List<PaceNote>>(File.ReadAllText(path));
+                var loaded = JsonSerializer.Deserialize<List<PaceNote>>(
+                    File.ReadAllText(path));
                 if (loaded != null)
-                    foreach (var n in loaded.OrderBy(x => x.Distance)) PaceNotes.Add(n);
+                    foreach (var n in loaded.OrderBy(x => x.Distance))
+                        PaceNotes.Add(n);
             }
             catch { }
         }
@@ -644,21 +679,36 @@ namespace LMUWeaver
             Environment.Exit(0);
         }
 
-        private void BtnToggleSettings_Click(object sender, RoutedEventArgs e)
+        // ── Compact toggle (footer ▲/▼ button) ───────────────────────────────
+        private void BtnCompact_Click(object sender, RoutedEventArgs e)
         {
-            if (SettingsContainer.Visibility == Visibility.Visible)
+            if (SettingsPanel.Visibility == Visibility.Visible)
             {
                 expandedHeight = this.Height;
-                SettingsContainer.Visibility = Visibility.Collapsed;
-                BtnToggleSettings.Content = "▶ SETTINGS";
+                SettingsPanel.Visibility = Visibility.Collapsed;
+                BtnCompact.Content = "▼";
                 this.MinHeight = 100; this.Height = 100;
             }
             else
             {
-                SettingsContainer.Visibility = Visibility.Visible;
-                BtnToggleSettings.Content = "▼ SETTINGS";
+                SettingsPanel.Visibility = Visibility.Visible;
+                BtnCompact.Content = "▲";
                 this.Height = expandedHeight; this.MinHeight = 160;
             }
+        }
+
+        private void BtnToggleBreakpoints_Click(object sender, RoutedEventArgs e)
+        {
+            bool open = BreakpointsContainer.Visibility == Visibility.Visible;
+            BreakpointsContainer.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+            BtnToggleBreakpoints.Content    = open ? "▶ BREAKPOINTS" : "▼ BREAKPOINTS";
+        }
+
+        private void BtnToggleDisplay_Click(object sender, RoutedEventArgs e)
+        {
+            bool open = DisplayContainer.Visibility == Visibility.Visible;
+            DisplayContainer.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+            BtnToggleDisplay.Content    = open ? "▶ DISPLAY" : "▼ DISPLAY";
         }
 
         private void BtnToggleSound_Click(object sender, RoutedEventArgs e)
