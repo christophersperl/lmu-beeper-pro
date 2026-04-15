@@ -269,17 +269,19 @@
                 <!-- ROW 5: Settings container -->
                 <Grid x:Name="SettingsContainer" Grid.Row="5">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- 0: SET BRAKING POINT -->
+                        <RowDefinition Height="Auto"/>  <!-- 1: brake point list -->
+                        <RowDefinition Height="Auto"/>  <!-- 2: NOTES toggle -->
+                        <RowDefinition Height="Auto"/>  <!-- 3: Notes container -->
+                        <RowDefinition Height="Auto"/>  <!-- 4: SOUND toggle -->
+                        <RowDefinition Height="Auto"/>  <!-- 5: Sound container -->
+                        <RowDefinition Height="*"/>     <!-- 6: theme / opacity -->
                     </Grid.RowDefinitions>
 
                     <Button Grid.Row="0" Content="SET BRAKING POINT" Click="BtnAddPoint_Click"
                             Height="26" Background="#FF00FFCC" Foreground="Black" FontWeight="Bold" Margin="0,0,0,6"/>
 
-                    <ListBox x:Name="ListPoints" Grid.Row="1" Background="#11FFFFFF" BorderThickness="0"
+                    <ListBox x:Name="ListPoints" Grid.Row="1" MaxHeight="120" Background="#11FFFFFF" BorderThickness="0"
                              Foreground="White" HorizontalContentAlignment="Stretch"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto">
@@ -319,13 +321,199 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
+                    <!-- NOTES section toggle -->
+                    <Button x:Name="BtnToggleNotes" Grid.Row="2" Content="▶ NOTES"
+                            Click="BtnToggleNotes_Click" Background="Transparent" Foreground="#FF444444"
+                            FontSize="9" FontWeight="Bold" Margin="0,6,0,2" HorizontalAlignment="Left"/>
+
+                    <!-- NOTES container (collapsible) -->
+                    <StackPanel x:Name="NotesContainer" Grid.Row="3" Visibility="Collapsed">
+
+                        <!-- Add note at current position -->
+                        <Button Content="ADD NOTE HERE" Click="BtnAddNote_Click"
+                                Height="24" Background="#FF1A3A2A" Foreground="#FF00FFCC"
+                                FontWeight="Bold" FontSize="9" Margin="0,0,0,4"/>
+
+                        <!-- Note list -->
+                        <ListBox x:Name="ListNotes" MaxHeight="110" Background="#0DFFFFFF" BorderThickness="0"
+                                 Foreground="White" HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 SelectionChanged="ListNotes_SelectionChanged">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="NoteItemBd" Background="Transparent">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="NoteItemBd" Property="Background" Value="#2200FFCC"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1" Padding="5,3">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="28"/>
+                                                <ColumnDefinition Width="44"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="20"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Symbol code (short) -->
+                                            <TextBlock Grid.Column="0" Text="{Binding Symbol}"
+                                                       FontSize="9" FontWeight="Bold" Foreground="#FF00FFCC"
+                                                       VerticalAlignment="Center"/>
+                                            <!-- Distance -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Distance, StringFormat={}{0:F0}m}"
+                                                       FontSize="9" FontWeight="Bold" Foreground="#FFFF8C00"
+                                                       VerticalAlignment="Center"/>
+                                            <!-- Text preview -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Text}"
+                                                       FontSize="9" Foreground="#FFAAAAAA"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <!-- Delete -->
+                                            <Button Grid.Column="3" Content="✕" Tag="{Binding}"
+                                                    Click="BtnDeleteNote_Click"
+                                                    Width="18" Height="18" FontSize="8"
+                                                    Background="Transparent" Foreground="#FF4444"
+                                                    VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Inline editor (hidden until add/edit) -->
+                        <Border x:Name="NoteEditor" Visibility="Collapsed"
+                                Background="#18FFFFFF" CornerRadius="3"
+                                Padding="6" Margin="0,4,0,0">
+                            <StackPanel>
+                                <!-- Symbol row -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Symbol:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="ComboNoteSymbol" Grid.Column="1"
+                                              Style="{StaticResource DarkCombo}">
+                                        <ComboBoxItem Content="L1" IsSelected="False"/>
+                                        <ComboBoxItem Content="L2"/>
+                                        <ComboBoxItem Content="L3"/>
+                                        <ComboBoxItem Content="L4"/>
+                                        <ComboBoxItem Content="L5"/>
+                                        <ComboBoxItem Content="L6"/>
+                                        <ComboBoxItem Content="R1"/>
+                                        <ComboBoxItem Content="R2"/>
+                                        <ComboBoxItem Content="R3"/>
+                                        <ComboBoxItem Content="R4"/>
+                                        <ComboBoxItem Content="R5"/>
+                                        <ComboBoxItem Content="R6"/>
+                                        <ComboBoxItem Content="CREST"/>
+                                        <ComboBoxItem Content="JUMP"/>
+                                        <ComboBoxItem Content="HAIRPIN L"/>
+                                        <ComboBoxItem Content="HAIRPIN R"/>
+                                        <ComboBoxItem Content="CHICANE"/>
+                                        <ComboBoxItem Content="CAUTION"/>
+                                        <ComboBoxItem Content="FLAT"/>
+                                        <ComboBoxItem Content="NARROW"/>
+                                        <ComboBoxItem Content="BRIDGE"/>
+                                        <ComboBoxItem Content="NOTE"/>
+                                    </ComboBox>
+                                </Grid>
+                                <!-- Text row -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Text:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="TxtNoteText" Grid.Column="1"
+                                             Background="#22FFFFFF" Foreground="White" BorderThickness="0"
+                                             FontSize="10" FontWeight="Bold" Padding="4,2"
+                                             CaretBrush="White"/>
+                                </Grid>
+                                <!-- Distance row -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Dist:" Foreground="#FF888888" FontSize="10" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtEditorDist" Grid.Column="1"
+                                               Foreground="#FFFF8C00" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Button Content="−" Grid.Column="2" Click="BtnNoteDistMinus_Click"
+                                            Width="16" Height="16" FontSize="10" Padding="0" Margin="2,0,0,0"/>
+                                    <Button Content="+" Grid.Column="3" Click="BtnNoteDistPlus_Click"
+                                            Width="16" Height="16" FontSize="10" Padding="0" Margin="2,0,0,0"/>
+                                </Grid>
+                                <!-- Save / Cancel -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="✓ SAVE" Click="BtnSaveNote_Click"
+                                            Height="22" Background="#FF00CC88" Foreground="Black"
+                                            FontWeight="Bold" FontSize="9" Margin="0,0,2,0"/>
+                                    <Button Content="✕ CANCEL" Grid.Column="1" Click="BtnCancelNote_Click"
+                                            Height="22" Background="#FF333333" FontSize="9" FontWeight="Bold" Margin="2,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Global note settings -->
+                        <TextBlock Text="DISPLAY DURATION" Foreground="#FF555555" FontSize="8" FontWeight="Bold" Margin="0,8,0,2"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="36"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="SliderNoteDuration" Minimum="1" Maximum="10" Value="3"
+                                    TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                    ValueChanged="SliderNoteDuration_ValueChanged"/>
+                            <TextBlock x:Name="TxtNoteDuration" Grid.Column="1"
+                                       Text="3.0 s" Foreground="#FF00FFCC" FontSize="10" FontWeight="Bold"
+                                       TextAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox x:Name="ToggleNoteTts" Content="TEXT TO SPEECH"
+                                      Style="{StaticResource MetroSwitch}"
+                                      IsChecked="True"
+                                      Checked="ToggleNoteTts_Changed" Unchecked="ToggleNoteTts_Changed"/>
+                            <Button Content="▶ TEST" Click="BtnTestNote_Click" Grid.Column="1"
+                                    Height="18" Padding="6,0" FontSize="8" FontWeight="Bold"
+                                    Background="#22FFFFFF" Foreground="#FFAAAAAA"/>
+                        </Grid>
+                    </StackPanel>
+
                     <!-- Sound section toggle -->
-                    <Button x:Name="BtnToggleSound" Grid.Row="2" Content="▼ SOUND"
+                    <Button x:Name="BtnToggleSound" Grid.Row="4" Content="▼ SOUND"
                             Click="BtnToggleSound_Click" Background="Transparent" Foreground="#FF444444"
                             FontSize="9" FontWeight="Bold" Margin="0,6,0,2" HorizontalAlignment="Left"/>
 
                     <!-- Sound section (collapsible) -->
-                    <StackPanel x:Name="SoundContainer" Grid.Row="3" Margin="0,0,0,0">
+                    <StackPanel x:Name="SoundContainer" Grid.Row="5" Margin="0,0,0,0">
                         <!-- Sound toggles -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8" HorizontalAlignment="Center">
                             <CheckBox x:Name="ToggleBrake" Content="BRAKE BEEPS" Style="{StaticResource MetroSwitch}"
@@ -406,7 +594,7 @@
                         </Grid>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4" Margin="0,8,0,0">
+                    <StackPanel Grid.Row="6" Margin="0,8,0,0">
                         <!-- Background opacity -->
                         <TextBlock Text="BACKGROUND OPACITY" Foreground="#FF555555" FontSize="8" FontWeight="Bold" Margin="0,0,0,2"/>
                         <Grid Margin="0,0,0,8">

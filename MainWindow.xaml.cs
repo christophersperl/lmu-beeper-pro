@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -53,6 +54,18 @@ namespace LMUWeaver
         private double currentRpmPct = 0;
         private double lastEntrySpeed = 0;
 
+        // ── Pace Notes ────────────────────────────────────────────────────────
+        public ObservableCollection<PaceNote> PaceNotes { get; } = new();
+        private PaceNoteOverlay? _noteOverlay;
+        private readonly HashSet<double> _notesFiredThisLap = new();
+        private CancellationTokenSource? _noteHideCts;
+        private double  _noteDisplaySeconds = 3.0;
+        private bool    _noteTtsEnabled     = true;
+        private SpeechSynthesizer? _tts;
+        // editor state
+        private PaceNote? _editingNote   = null;  // null = adding new
+        private double    _editorDist    = 0;
+
         // ── Themes ──────────────────────────────────────────────────────────
         private sealed class ThemeConfig
         {
@@ -85,6 +98,7 @@ namespace LMUWeaver
         {
             InitializeComponent();
             ListPoints.ItemsSource = BrakingPoints;
+            ListNotes.ItemsSource  = PaceNotes;
             InitThemes();
             ApplyTheme(_allThemes[0]);
             Task.Run(() => ReadTelemetryLoop());
@@ -139,10 +153,12 @@ namespace LMUWeaver
                             {
                                 lastLapNumber = mySco.mTotalLaps;
                                 ResetBeepStatus();
+                                _notesFiredThisLap.Clear();
                             }
 
                             if (isBrakeBeepEnabled) CheckBeeperLogic(currentDistance);
                             if (isShiftBeepEnabled) CheckShiftLogic(myTel.mEngineRPM, myTel.mEngineMaxRPM);
+                            if (PaceNotes.Count > 0) CheckPaceNotes(currentDistance);
 
                             double throttle = myTel.mUnfilteredThrottle;
                             double brake    = myTel.mUnfilteredBrake;
@@ -491,6 +507,7 @@ namespace LMUWeaver
             if (string.IsNullOrEmpty(currentTrack)) return;
             string json = JsonSerializer.Serialize(BrakingPoints, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText($"{currentTrack}.json", json);
+            SaveNotes();
         }
 
         private void LoadLocalPoints()
@@ -505,11 +522,127 @@ namespace LMUWeaver
                 }
                 catch { }
             }
+            LoadNotes();
+        }
+
+        // ── Pace Notes persistence ────────────────────────────────────────────
+
+        private void SaveNotes()
+        {
+            if (string.IsNullOrEmpty(currentTrack)) return;
+            File.WriteAllText($"{currentTrack}_notes.json",
+                JsonSerializer.Serialize(PaceNotes.ToList(), new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        private void LoadNotes()
+        {
+            string path = $"{currentTrack}_notes.json";
+            PaceNotes.Clear();
+            _notesFiredThisLap.Clear();
+            if (!File.Exists(path)) return;
+            try
+            {
+                var loaded = JsonSerializer.Deserialize<List<PaceNote>>(File.ReadAllText(path));
+                if (loaded != null)
+                    foreach (var n in loaded.OrderBy(x => x.Distance)) PaceNotes.Add(n);
+            }
+            catch { }
+        }
+
+        // ── Pace Notes — symbol helpers ───────────────────────────────────────
+
+        private static readonly Dictionary<string, string> SymbolGlyphs = new()
+        {
+            ["L1"] = "← 1",  ["L2"] = "← 2",  ["L3"] = "← 3",
+            ["L4"] = "← 4",  ["L5"] = "← 5",  ["L6"] = "← 6",
+            ["R1"] = "→ 1",  ["R2"] = "→ 2",  ["R3"] = "→ 3",
+            ["R4"] = "→ 4",  ["R5"] = "→ 5",  ["R6"] = "→ 6",
+            ["HAIRPIN L"] = "↩ HAIRPIN", ["HAIRPIN R"] = "↪ HAIRPIN",
+            ["CREST"]   = "⌒ CREST",  ["JUMP"]    = "⤴ JUMP",
+            ["CAUTION"] = "⚠ CAUTION",["FLAT"]    = "═ FLAT",
+            ["CHICANE"] = "⇄ CHICANE",["NARROW"]  = ">< NARROW",
+            ["BRIDGE"]  = "│ BRIDGE", ["NOTE"]    = "📝 NOTE",
+        };
+
+        private static string GetGlyph(string code) =>
+            SymbolGlyphs.TryGetValue(code, out var g) ? g : code;
+
+        // ── Pace Notes — trigger ─────────────────────────────────────────────
+
+        private void CheckPaceNotes(double dist)
+        {
+            // ToArray snapshot — called from background thread, collection may change on UI thread
+            PaceNote[] snapshot;
+            try { snapshot = PaceNotes.ToArray(); } catch { return; }
+
+            foreach (var note in snapshot)
+            {
+                if (_notesFiredThisLap.Contains(note.Distance)) continue;
+                // Trigger when within 5 m before the marked point
+                if (dist >= note.Distance - 5 && dist < note.Distance + 80)
+                {
+                    _notesFiredThisLap.Add(note.Distance);
+                    var captured = note;
+                    Dispatcher.BeginInvoke(new Action(() => TriggerNoteDisplay(captured)));
+                }
+            }
+        }
+
+        private async void TriggerNoteDisplay(PaceNote note)
+        {
+            // Cancel any previous auto-hide timer
+            _noteHideCts?.Cancel();
+            _noteHideCts = new CancellationTokenSource();
+            var token = _noteHideCts.Token;
+
+            _noteOverlay ??= new PaceNoteOverlay();
+            _noteOverlay.ShowNote(GetGlyph(note.Symbol), note.Text);
+
+            // Speak on background thread
+            if (_noteTtsEnabled && !string.IsNullOrWhiteSpace(note.Text))
+            {
+                string spokenText = $"{note.Symbol.ToLower().Replace("_", " ")} {note.Text}";
+                _ = Task.Run(() => SpeakText(spokenText));
+            }
+
+            try
+            {
+                await Task.Delay((int)(_noteDisplaySeconds * 1000), token);
+                _noteOverlay?.HideNote();
+            }
+            catch (TaskCanceledException) { /* another note took over */ }
+        }
+
+        private void SpeakText(string text)
+        {
+            try
+            {
+                _tts ??= new SpeechSynthesizer();
+                _tts.SpeakAsync(text);
+            }
+            catch { }
+        }
+
+        // ── Pace Notes — sort helper ──────────────────────────────────────────
+
+        private void SortNotes()
+        {
+            var sorted = PaceNotes.OrderBy(n => n.Distance).ToList();
+            PaceNotes.Clear();
+            foreach (var n in sorted) PaceNotes.Add(n);
+            _notesFiredThisLap.Clear();
         }
 
         private void Window_MouseDown(object sender, MouseButtonEventArgs e) { if (e.ChangedButton == MouseButton.Left) DragMove(); }
         private void ResizeThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e) { this.Width = Math.Max(this.MinWidth, this.Width + e.HorizontalChange); this.Height = Math.Max(this.MinHeight, this.Height + e.VerticalChange); }
-        private void BtnClose_Click(object sender, RoutedEventArgs e) { SaveLocalPoints(); _overlay?.Close(); Environment.Exit(0); }
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            SaveLocalPoints();
+            _overlay?.Close();
+            _noteOverlay?.Close();
+            try { _tts?.Dispose(); } catch { }
+            Environment.Exit(0);
+        }
 
         private void BtnToggleSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -540,6 +673,125 @@ namespace LMUWeaver
                 SoundContainer.Visibility = Visibility.Visible;
                 BtnToggleSound.Content = "▼ SOUND";
             }
+        }
+
+        // ── Notes UI handlers ─────────────────────────────────────────────────
+
+        private void BtnToggleNotes_Click(object sender, RoutedEventArgs e)
+        {
+            bool open = NotesContainer.Visibility == Visibility.Visible;
+            NotesContainer.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
+            BtnToggleNotes.Content    = open ? "▶ NOTES" : "▼ NOTES";
+        }
+
+        private void BtnAddNote_Click(object sender, RoutedEventArgs e)
+        {
+            _editingNote  = null;
+            _editorDist   = Math.Round(currentDistance, 1);
+            TxtNoteText.Text = "";
+            ComboNoteSymbol.SelectedIndex = 8; // default R3
+            TxtEditorDist.Text = $"{_editorDist:F1} m";
+            NoteEditor.Visibility = Visibility.Visible;
+            ListNotes.SelectedItem = null;
+        }
+
+        private void ListNotes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ListNotes.SelectedItem is not PaceNote note) return;
+            _editingNote = note;
+            _editorDist  = note.Distance;
+            TxtNoteText.Text = note.Text;
+            // Select matching ComboBox item
+            foreach (ComboBoxItem item in ComboNoteSymbol.Items)
+                if (item.Content?.ToString() == note.Symbol) { ComboNoteSymbol.SelectedItem = item; break; }
+            TxtEditorDist.Text = $"{_editorDist:F1} m";
+            NoteEditor.Visibility = Visibility.Visible;
+        }
+
+        private void BtnNoteDistMinus_Click(object sender, RoutedEventArgs e)
+        {
+            _editorDist = Math.Round(_editorDist - 1.0, 1);
+            TxtEditorDist.Text = $"{_editorDist:F1} m";
+        }
+
+        private void BtnNoteDistPlus_Click(object sender, RoutedEventArgs e)
+        {
+            _editorDist = Math.Round(_editorDist + 1.0, 1);
+            TxtEditorDist.Text = $"{_editorDist:F1} m";
+        }
+
+        private void BtnSaveNote_Click(object sender, RoutedEventArgs e)
+        {
+            string symbol = ComboNoteSymbol.SelectedItem is ComboBoxItem ci
+                ? ci.Content?.ToString() ?? "NOTE"
+                : "NOTE";
+            string text = TxtNoteText.Text.Trim();
+
+            if (_editingNote == null)
+            {
+                PaceNotes.Add(new PaceNote { Distance = _editorDist, Symbol = symbol, Text = text });
+            }
+            else
+            {
+                int idx = PaceNotes.IndexOf(_editingNote);
+                if (idx >= 0)
+                {
+                    PaceNotes.RemoveAt(idx);
+                    _editingNote.Distance = _editorDist;
+                    _editingNote.Symbol   = symbol;
+                    _editingNote.Text     = text;
+                    PaceNotes.Insert(idx, _editingNote);
+                }
+            }
+            SortNotes();
+            SaveNotes();
+            NoteEditor.Visibility = Visibility.Collapsed;
+            ListNotes.SelectedItem = null;
+        }
+
+        private void BtnCancelNote_Click(object sender, RoutedEventArgs e)
+        {
+            NoteEditor.Visibility = Visibility.Collapsed;
+            ListNotes.SelectedItem = null;
+        }
+
+        private void BtnDeleteNote_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is PaceNote note)
+            {
+                PaceNotes.Remove(note);
+                NoteEditor.Visibility = Visibility.Collapsed;
+                SaveNotes();
+            }
+        }
+
+        private void SliderNoteDuration_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TxtNoteDuration != null)
+            {
+                _noteDisplaySeconds    = e.NewValue;
+                TxtNoteDuration.Text   = $"{_noteDisplaySeconds:F1} s";
+            }
+        }
+
+        private void ToggleNoteTts_Changed(object sender, RoutedEventArgs e)
+            => _noteTtsEnabled = ToggleNoteTts.IsChecked ?? false;
+
+        private void BtnTestNote_Click(object sender, RoutedEventArgs e)
+        {
+            // Preview the currently edited note, or first note in list
+            var preview = _editingNote ?? PaceNotes.FirstOrDefault();
+            if (preview == null)
+            {
+                // Show a demo
+                _noteOverlay ??= new PaceNoteOverlay();
+                _noteOverlay.ShowNote("← 3", "medium left tightens");
+                return;
+            }
+            _noteOverlay ??= new PaceNoteOverlay();
+            _noteOverlay.ShowNote(GetGlyph(preview.Symbol), preview.Text);
+            if (_noteTtsEnabled && !string.IsNullOrWhiteSpace(preview.Text))
+                _ = Task.Run(() => SpeakText($"{preview.Symbol} {preview.Text}"));
         }
 
         private void InitThemes()
